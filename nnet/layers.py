@@ -196,8 +196,10 @@ class SelfAttention(Layer):
             return np.array(weighted_val).reshape((-1, self.dimension)).T
 
     def backward(self, dY, batch_size, Y=None, Y_hat=None, loss_function=None):
-        dY = np.reshape(dY.T, (-1, self.sequence_len, self.dimension))
+        if self.embedding is False:
+            return dY
 
+        dY = np.reshape(dY.T, (-1, self.sequence_len, self.dimension))
         Q_grad = []
         K_grad = []
         V_grad = []
@@ -217,11 +219,7 @@ class SelfAttention(Layer):
         K_grad = np.array(K_grad).reshape((-1, self.dimension)).T
         V_grad = np.array(V_grad).reshape((-1, self.dimension)).T
 
-        if self.embedding is True:
-            return self.query.backward(Q_grad, batch_size) + self.key.backward(K_grad, batch_size) + \
-                   self.value.backward(V_grad, batch_size)
-        else:
-            return Q_grad + K_grad + V_grad
+        return self.query.backward(Q_grad, batch_size) + self.key.backward(K_grad, batch_size) + self.value.backward(V_grad, batch_size)
 
 
 class LayerNormalization(Layer):
