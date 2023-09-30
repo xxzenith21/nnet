@@ -182,7 +182,7 @@ class SelfAttention(Layer):
             attention_score = MatMul.forward(Q, K.T)
             attention_score = (1 / self.dimension ** 0.5) * attention_score
             if self.masked is True:
-                attention_score = np.tril(attention_score, -1)
+                attention_score = np.tril(attention_score)
 
             attention_score = Softmax.forward(attention_score.T).T
             weighted_val.append(MatMul.forward(attention_score, V))
