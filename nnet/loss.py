@@ -7,7 +7,7 @@ from .activation import Activation, Softmax, Sigmoid, Tanh
 
 class Loss:
     @staticmethod
-    def forward(Y: NDArray[np.float64], Y_hat: NDArray[np.float64]) -> NDArray[np.float64]:
+    def forward(Y: NDArray[np.float64], Y_hat: NDArray[np.float64]) -> np.float64:
         pass
 
     @staticmethod

@@ -14,6 +14,17 @@ class Activation:
         pass
 
 
+class Linear(Activation):
+    @staticmethod
+    def forward(Z: NDArray[np.float64]):
+        return Z
+
+    # compute activation gradient
+    @staticmethod
+    def backward(Z: NDArray[np.float64]):
+        return 1
+
+
 class Sigmoid(Activation):
     @staticmethod
     def forward(Z):
@@ -43,7 +54,7 @@ class Tanh(Activation):
 
     @staticmethod
     def backward(Z):
-        return 1 - ((np.exp(Z) - np.exp(-Z)) / (np.exp(Z) + np.exp(-Z)))**2
+        return 1 - ((np.exp(Z) - np.exp(-Z)) / (np.exp(Z) + np.exp(-Z))) ** 2
 
 
 class Softmax(Activation):
