@@ -118,6 +118,7 @@ class SelfAttention(Layer):
     def __init__(self,
                  sequence_len: int,
                  dimension: int,
+                 masked: bool = False,
                  embedding: bool = True,
                  bptt: bool = True):
         self.embedding = embedding  # set the if the attention layer requires embedding
@@ -135,6 +136,7 @@ class SelfAttention(Layer):
 
         self.sequence_len = sequence_len
         self.dimension = dimension
+        self.masked = masked
         self.bptt = bptt
         self.attention_scores = []  # cache scores
 
@@ -179,6 +181,9 @@ class SelfAttention(Layer):
 
             attention_score = MatMul.forward(Q, K.T)
             attention_score = (1 / self.dimension ** 0.5) * attention_score
+            if self.masked is True:
+                attention_score = np.tril(attention_score, -1)
+
             attention_score = Softmax.forward(attention_score.T).T
             weighted_val.append(MatMul.forward(attention_score, V))
 
