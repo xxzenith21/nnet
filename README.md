@@ -5,7 +5,7 @@ A miniature implementation of Neural Network
 You can train a neural network using NNET by importing the package and calling the base class to define your model architecture. 
 The base class accepts an array of layers.
 
-'''python
+```python
   import nnet
   
   model = nnet.Sequential([
@@ -13,13 +13,13 @@ The base class accepts an array of layers.
       nnet.layers.Dense((10, 8), nnet.activation.Tanh),
       nnet.layers.Dense((8, 2), nnet.activation.Sigmoid)
   ])
-'''
+```
 
 After defining your model architecture, you can train the model using 'fit' or 'fit_transform' methods.
 
-'''python
+```python
   model.fit(X_train, Y_train, 500, nnet.loss.MeanSquaredError, nnet.optimizers.RMSProp(), X_val=X_test, Y_val=Y_test)
-'''
+```
 
 The following method accepts the following arguments.
 | Argument        | Description                                                                                               |
