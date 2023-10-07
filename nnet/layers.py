@@ -10,17 +10,48 @@ from .optimizers import Optimizer, GradientDescent
 from .common import PreActivation, MatMul
 
 
+"""
+    This file features different neural network layers.
+    You can add additional layer types (e.g. Convolutional Layers,
+    Recurrent Layers) by extending the 'Layer' class.
+"""
+
+
 class Layer(abc.ABC):
+    """
+        This method is used to reinitialize the chosen learning
+        optimizer. We reinitialized it to provide the layer size
+        because adaptive optimizers requires a cache of previous
+        parameters.
+    """
     @abc.abstractmethod
     def set_optimizer(self, optimizer: Optimizer) -> None:
         pass
 
+    """
+        This method is used for forward propagation. You need to 
+        provide the X (input) with the shape of (input_size, sample_size).
+        You can also specify if the model is still training or 
+        already for production. This is helpful to prevent the model from 
+        computing derivatives when the model is already intended for 
+        production.
+    """
     @abc.abstractmethod
     def forward(self,
                 X: NDArray[np.float64],
                 training: bool = True) -> NDArray[np.float64]:
         pass
 
+    """
+        This method is used for backpropagation. It takes the dY (derivatives
+        from previous layers), batch size, Y (actual values), Y_hat (predicted
+        values from the last layer), and the loss function.
+        
+        Notice that the last three arguments (Y, Y_hat, and loss function) is 
+        used just for last layers. The computation of activation function derivative
+        is sometimes included in loss function derivative to reduce the model's
+        time and space complexity.
+    """
     @abc.abstractmethod
     def backward(self,
                  dY: NDArray[np.float64],
@@ -31,7 +62,21 @@ class Layer(abc.ABC):
         pass
 
 
+"""
+    The Dense layer, also referred as a Linear layer in most articles
+    is the common layer type for feed forward networks.
+    For additional explanation, you can check out
+    https://www.analyticsvidhya.com/blog/2022/01/feedforward-neural-network-its-layers-functions-and-importance/
+"""
+
+
 class Dense(Layer):
+    """
+        :arg size [corresponds to a tuple (input_size, output_size). The input size is the output
+                    dimension of the previous layer while the output size is the target output
+                    dimension of the current layer. The activation]
+        :arg activation [refers to the chosen activation function]
+    """
     def __init__(self, size: Tuple[int, int], activation: Activation):
         # initialize parameters
         x_size, y_size = size
@@ -77,6 +122,13 @@ class Dense(Layer):
         return dX  # return derivative of input
 
 
+"""
+    Positional Encoding layer is a technique used in transformer-based architectures to
+    incorporate information about the position of words or tokens in a sequence into the model.
+    For additional details please refer to https://research.google/pubs/pub46201/
+"""
+
+
 class PositionalEncoding(Layer):
     def __init__(self,
                  sequence_len: int,
@@ -112,6 +164,15 @@ class PositionalEncoding(Layer):
 
     def backward(self, dY, batch_size, Y=None, Y_hat=None, loss_function=None):
         return dY
+
+
+"""
+    Self Attention Layer is a fundamental layer of transformer-based architectures
+    that enables the model to weigh the importance of different words or tokens in a sequence based on their 
+    relationships with each other. For additional details please refer to https://research.google/pubs/pub46201/
+    
+    Note: This layer is still on experimental phase.
+"""
 
 
 class SelfAttention(Layer):
@@ -220,6 +281,16 @@ class SelfAttention(Layer):
         V_grad = np.array(V_grad).reshape((-1, self.dimension)).T
 
         return self.query.backward(Q_grad, batch_size) + self.key.backward(K_grad, batch_size) + self.value.backward(V_grad, batch_size)
+
+
+"""
+   Layer normalization is a technique used to normalize the activations or 
+   outputs of each layer in a neural network thus stabilizing the training process, 
+   improving convergence, and making the model less sensitive to the scale of the inputs.
+   For further information, please refer to https://www.analyticsvidhya.com/blog/2021/03/introduction-to-batch-normalization/
+   
+   Note: This layer is still on experimental phase.
+"""
 
 
 class LayerNormalization(Layer):

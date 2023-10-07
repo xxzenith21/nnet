@@ -8,6 +8,16 @@ from .optimizers import Optimizer, GradientDescent
 from .layers import Layer
 
 
+"""
+    The base class to structure and train a
+    neural network model. As of its current version,
+    saving the model's learned parameters is still subject 
+    for enhancement. You can utilize jupyter notebook
+    instead. You can add other utility methods or other
+    neural network structure below.
+"""
+
+
 class Sequential:
     def __init__(self, layers: List[Layer]):
         self.layers = layers

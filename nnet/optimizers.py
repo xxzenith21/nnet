@@ -4,6 +4,13 @@ from typing import Tuple
 from numpy.typing import NDArray
 
 
+"""
+    This file features different optimization algorithms to update 
+    the model's parameters. You can add other optimization 
+    algorithms below by extending the 'Optimizer' class.
+"""
+
+
 class Optimizer(abc.ABC):
     # initialize cache for optimizers that uses past gradients
     @abc.abstractmethod
@@ -20,6 +27,17 @@ class Optimizer(abc.ABC):
         pass
 
 
+"""
+    Gradient Descent is an iterative algorithm 
+    to iteratively update the parameters (weights and biases) 
+    of the model in a way that reduces the loss. This is achieved
+    by subtracting the product of gradient/derivative and learning rate
+    to the current parameters (weights and biases).
+    For further details you can refer to 
+    https://www.analyticsvidhya.com/blog/2021/03/understanding-gradient-descent-algorithm/
+"""
+
+
 class GradientDescent(Optimizer):
     def __init__(self, alpha=0.10):
         self.alpha = alpha
@@ -34,7 +52,16 @@ class GradientDescent(Optimizer):
         return W, b
 
 
-class AdGrad(Optimizer):
+"""
+    Unlike Gradient Descent, AdaGrad is designed to adaptively adjust the learning rate during the 
+    training process based on the historical gradients of the parameters. AdaGrad is to gives larger 
+    updates to parameters that have a smaller gradient and vice versa. 
+    For further details please check out
+    https://towardsdatascience.com/learning-parameters-part-5-65a2f3583f7d
+"""
+
+
+class AdaGrad(Optimizer):
     def __init__(self, eta=0.01, epsilon=1e-8, size=(0, 0)):
         self.v_dw = np.zeros(size)
         self.v_db = np.zeros(size[0])
@@ -42,7 +69,7 @@ class AdGrad(Optimizer):
         self.eta = eta
 
     def get_optimizer(self, size):
-        return AdGrad(self.eta, self.epsilon, size)
+        return AdaGrad(self.eta, self.epsilon, size)
 
     def update_params(self, dW, db, W, b):
         # collect moving average
@@ -54,6 +81,16 @@ class AdGrad(Optimizer):
         b = b - (self.eta / (np.sqrt(self.v_db) + self.epsilon)) * db
 
         return W, b
+
+
+"""
+    RMSProp is an extension of the AdaGrad optimizer to address the 
+    diminishing learning rate problem that AdaGrad encounters during training.
+    RMSProp adaptively adjust the learning rates for each parameter by scaling the gradients based on the 
+    exponentially decaying average of the squared gradients.
+    For further details please check out
+    https://towardsdatascience.com/learning-parameters-part-5-65a2f3583f7d
+"""
 
 
 class RMSProp(Optimizer):
@@ -76,6 +113,15 @@ class RMSProp(Optimizer):
         b = b - self.eta * (db / (np.sqrt(self.v_db) + self.epsilon))
 
         return W, b
+
+
+"""
+    Adam combines ideas from both the AdaGrad and RMSProp optimizers to provide 
+    adaptive learning rates for model parameters. Adam uses two moving averages 
+    to adaptively update the learning rates for each parameter.
+    For further details please check out
+    https://towardsdatascience.com/learning-parameters-part-5-65a2f3583f7d
+"""
 
 
 class Adam(Optimizer):

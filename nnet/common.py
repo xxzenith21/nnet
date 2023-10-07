@@ -2,6 +2,20 @@ import numpy as np
 from numpy.typing import NDArray
 from typing import Tuple
 
+"""
+    This file features common functions used in neural network 
+    which, usually are matrix operations. You can add other common 
+    neural network operations below given that you also provide the
+    derivative of that operation.
+"""
+
+
+"""
+    A common class used in performing an element-wise
+    dot product of two vectors including its derivative
+    calculation.
+"""
+
 
 class MatMul:
     @staticmethod
@@ -17,6 +31,14 @@ class MatMul:
         dY = X.T.dot(dY)  # derivative of y
 
         return dX, dY
+
+
+"""
+    A common class to calculate linear activation of neurons
+    before passing it to an activation function. This operation includes 
+    an element-wise dot product and adding biases to weight vector.
+    This also includes derivative calculation of the linear activation.
+"""
 
 
 class PreActivation:
