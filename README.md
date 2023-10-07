@@ -33,6 +33,9 @@ The following method accepts the following arguments.
 | Y_val           | Validation Labels. This should be in a numpy array with the dimensions of (sample_size, output_size)      |
 | accuracy_metric | lambda function for custom accuracy calculation                                                           |
 
+Please notice that the optimizer has open and closed parenthesis compared to other imported modules. Because unlike other modules,
+the optimizers are not abstract classes as each layer requires different instances of optimizers.
+
 # How can I contribute?
 
 You can contribute by cloning the repository and adding a pull request. Feel free to optimize the existing algorithms or add new methods. 
