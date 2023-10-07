@@ -36,10 +36,16 @@ The following method accepts the following arguments.
 Please notice that the optimizer has open and closed parenthesis compared to other imported modules. Because unlike other modules,
 the optimizers are not abstract classes as each layer requires different instances of optimizers.
 
+For examples of the framework's implementation, please check the test folder.
+
 # How can I contribute?
 
 You can contribute by cloning the repository and adding a pull request. Feel free to optimize the existing algorithms or add new methods. 
 If you forked the repository, ensure your copy is always up-to-date. Please refer to this question for additional information on how to
 ensure your forked repository is up-to-date. https://stackoverflow.com/questions/7244321/how-do-i-update-or-sync-a-forked-repository-on-github
 
-> Happy Coding!
+In addition, please test your suggested improvements before submitting a pull request. If possible, please provide a screenshot or notebook of the test case.
+
+>
+> Thank you and Happy Coding!
+>
