@@ -1,18 +1,63 @@
 import os
 import librosa
+import librosa.display
 import numpy as np
-from PIL import Image
+import matplotlib.pyplot as plt
 
-print("Running...")
-# Placeholder function for generating spectrogram
-def generate_spectrogram(audio_path, save_path):
-    # Add your code for generating spectrogram here
-    pass
+input_folder = "K:/Thesis/labeled_dataset"
+output_folder = "K:/Thesis/spectro"
+features_folder = "K:/Thesis/features"
+FRAME_SIZE = 2048
+HOP_SIZE = 512
 
-# Function to extract features from a single spectrogram
-def extract_features_from_spectrogram(spectro_path):
+# Function to clear the contents of a folder
+def clear_folder(folder_path):
+    for filename in os.listdir(folder_path):
+        file_path = os.path.join(folder_path, filename)
+        try:
+            if os.path.isfile(file_path) or os.path.islink(file_path):
+                os.unlink(file_path)
+            elif os.path.isdir(file_path):
+                shutil.rmtree(file_path)
+        except Exception as e:
+            print(f"Failed to delete {file_path}. Reason: {e}")
+
+# Clear the contents of the output folder
+clear_folder(output_folder)
+clear_folder(features_folder)
+
+def generate_and_save_spectrogram(audio_file, output_folder, frame_size=2048, hop_size=512):
+    audio, sr = librosa.load(audio_file)
+    
+    S_audio = librosa.stft(audio, n_fft=frame_size, hop_length=hop_size)
+    Y_audio = np.abs(S_audio) ** 2
+    Y_log_audio = librosa.power_to_db(Y_audio)
+    
+    # Get the filename without extension
+    filename = os.path.splitext(os.path.basename(audio_file))[0]
+    
+    # Save the spectrogram to the output folder
+    output_path = os.path.join(output_folder, f"{filename}_spectrogram.png")
+    plot_spectrogram(Y_log_audio, sr, hop_size, y_axis="log", save_path=output_path)
+    plt.close()  # Close the figure after saving
+
+def plot_spectrogram(Y, sr, hop_length, y_axis="linear", save_path=None):
+    plt.figure(figsize=(25, 10))
+    librosa.display.specshow(Y, 
+                             sr=sr, 
+                             hop_length=hop_length, 
+                             x_axis="time", 
+                             y_axis=y_axis)
+    plt.colorbar(format="%+2.f")
+    
+    if save_path:
+        plt.savefig(save_path)
+    else:
+        plt.show()
+
+def extract_features_from_spectrogram(spectro_path, sr):
     # Load the spectrogram image
-    spectro_image = Image.open(spectro_path)
+    spectro_image = plt.imread(spectro_path)
 
     # Convert the image to a NumPy array
     spectro_array = np.array(spectro_image)
@@ -37,62 +82,24 @@ def extract_features_from_spectrogram(spectro_path):
 
     return flattened_features
 
-# Function to generate and save MFCC features
-def generate_and_save_mfcc_features(audio_path, save_folder):
-    y, sr = librosa.load(audio_path)
-    mfcc_features = librosa.feature.mfcc(y=y, sr=sr)
-    np.save(os.path.join(save_folder, f"{os.path.splitext(os.path.basename(audio_path))[0]}_mfcc.npy"), mfcc_features)
+# Process all audio files in the input folder
+for filename in os.listdir(input_folder):
+    if filename.endswith(".wav"):
+        audio_path = os.path.join(input_folder, filename)
+        generate_and_save_spectrogram(audio_path, output_folder, FRAME_SIZE, HOP_SIZE)
 
-# Function to generate spectrograms and save MFCC features for all audio files in a folder
-def process_audio_folder(folder_path, save_folder):
-    # Create the save folder if it doesn't exist
-    os.makedirs(save_folder, exist_ok=True)
+# Process all spectrograms in the output folder
+for filename in os.listdir(output_folder):
+    if filename.endswith("_spectrogram.png"):
+        spectro_path = os.path.join(output_folder, filename)
+        
+        # Extract features from the spectrogram
+        feature_vector = extract_features_from_spectrogram(spectro_path, librosa.get_samplerate(audio_path))
 
-    # Iterate through all files in the folder
-    for filename in os.listdir(folder_path):
-        if filename.endswith(".wav"):
-            audio_path = os.path.join(folder_path, filename)
-            save_path = os.path.join(save_folder, f"{os.path.splitext(filename)[0]}_spectrogram.png")
+        # Create a valid filename for saving the features
+        valid_filename = ''.join(e for e in filename if e.isalnum() or e in ['_', '-'])
+        features_path = os.path.join(features_folder, f"{os.path.splitext(valid_filename)[0]}_features.npy")
+        
+        np.save(features_path, feature_vector)
 
-            generate_spectrogram(audio_path, save_path)
-            generate_and_save_mfcc_features(audio_path, save_folder)
-
-# Function to extract features from saved spectrograms
-def extract_features_from_spectrograms(spectro_folder):
-    features = []
-
-    # Iterate through all files in the folder
-    for filename in os.listdir(spectro_folder):
-        if filename.endswith("_spectrogram.png"):
-            spectro_path = os.path.join(spectro_folder, filename)
-
-            # Extract features from the spectrogram
-            feature_vector = extract_features_from_spectrogram(spectro_path)
-
-            # Append the features and the label to the list
-            features.append((feature_vector, get_label_from_filename(filename)))
-
-    return features
-
-# Function to extract label from filename
-def get_label_from_filename(filename):
-    # Extract label from the filename (you can customize this based on your filenames)
-    label = filename.split(".")[1]
-    return label
-
-# Example usage:
-audio_folder = 'K:/Thesis/labeled_dataset'
-save_folder = 'K:/Thesis/spectro'
-process_audio_folder(audio_folder, save_folder)
-
-generate_spectrogram(audio_folder, save_folder)
-
-# Extract features from saved spectrograms
-extracted_features = extract_features_from_spectrograms(save_folder)
-
-# Print the extracted features
-for feature_vector, label in extracted_features:
-    print(f"Label: {label}, Features: {feature_vector}")
-
-print(extracted_features)
-print("Finished.")
+print("Features extracted and saved successfully.")
