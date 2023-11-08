@@ -65,6 +65,9 @@ def extract_features_from_spectrogram(spectro_path, sr):
     # Extract Chroma features
     chroma_features = librosa.feature.chroma_stft(y=spectro_array.mean(axis=-1), sr=sr)
 
+    # Extract MFCC features
+    mfcc_features = librosa.feature.mfcc(y=spectro_array.mean(axis=-1), sr=sr, n_mfcc=13)
+
     # Extract Spectral Contrast features
     spectral_contrast = librosa.feature.spectral_contrast(y=spectro_array.mean(axis=-1), sr=sr)
 
@@ -73,12 +76,18 @@ def extract_features_from_spectrogram(spectro_path, sr):
     spectral_bandwidth = librosa.feature.spectral_bandwidth(y=spectro_array.mean(axis=-1), sr=sr)
     rolloff = librosa.feature.spectral_rolloff(y=spectro_array.mean(axis=-1), sr=sr)
 
+    # Extract pitch range
+    pitches, magnitudes = librosa.core.piptrack(y=spectro_array.mean(axis=-1), sr=sr)
+    pitch_range = np.max(pitches, axis=0) - np.min(pitches, axis=0)
+
+    # Ensure all features have compatible dimensions
+    features = [chroma_features, mfcc_features, spectral_contrast, spectral_centroid, spectral_bandwidth, rolloff]
+
     # Flatten the features for simplicity
-    flattened_features = np.concatenate([chroma_features.flatten(),
-                                         spectral_contrast.flatten(),
-                                         spectral_centroid.flatten(),
-                                         spectral_bandwidth.flatten(),
-                                         rolloff.flatten()])
+    flattened_features = np.concatenate([feature.flatten() for feature in features])
+
+    # Add pitch range to the feature vector
+    flattened_features = np.concatenate([flattened_features, pitch_range.flatten()])
 
     return flattened_features
 
