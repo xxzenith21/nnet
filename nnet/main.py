@@ -1,67 +1,69 @@
 import numpy as np
 
-# Activation function (sigmoid)
-def sigmoid(x):
-    return 1 / (1 + np.exp(-x))
+class Conv2DLayer:
+    def __init__(self, input_channels, output_channels, kernel_size, stride, padding):
+        self.weights = np.random.randn(output_channels, input_channels, kernel_size, kernel_size)
+        self.bias = np.zeros((1, output_channels))
+        self.stride = stride
+        self.padding = padding
 
-# Derivative of the sigmoid function
-def sigmoid_derivative(x):
-    return x * (1 - x)
+    def forward(self, X):
+        # Assume X is a 4D tensor (batch_size, input_channels, height, width)
+        batch_size, input_channels, input_height, input_width = X.shape
+        kernel_size = self.weights.shape[2]
+        output_channels = self.weights.shape[0]
 
-# Mean Squared Error (MSE) loss
-def mse_loss(y_true, y_pred):
-    return np.mean((y_true - y_pred) ** 2)
+        # Compute output dimensions
+        output_height = (input_height - kernel_size + 2 * self.padding) // self.stride + 1
+        output_width = (input_width - kernel_size + 2 * self.padding) // self.stride + 1
 
-# Initialize weights
-def initialize_weights(input_size, output_size):
-    return np.random.randn(input_size, output_size) * 0.01
+        # Apply convolution operation
+        self.input = X
+        self.conv_output = np.zeros((batch_size, output_channels, output_height, output_width))
 
-# Forward pass
-def forward_pass(X, weights):
-    return sigmoid(np.dot(X, weights))
+        for i in range(output_height):
+            for j in range(output_width):
+                h_start = i * self.stride
+                h_end = h_start + kernel_size
+                w_start = j * self.stride
+                w_end = w_start + kernel_size
 
-# Backward pass (gradient descent)
-def backward_pass(X, y_true, y_pred, weights, learning_rate):
-    error = y_true - y_pred
-    delta = error * sigmoid_derivative(y_pred)
-    weights += learning_rate * np.dot(X.T, delta)
-    return weights
+                receptive_field = X[:, :, h_start:h_end, w_start:w_end]
+                self.conv_output[:, :, i, j] = np.sum(receptive_field * self.weights, axis=(2, 3, 4)) + self.bias
 
-# Training the neural network
-def train_neural_network(X_train, y_train, epochs, learning_rate):
-    input_size = X_train.shape[1]
-    output_size = y_train.shape[1]
+        return self.conv_output
 
-    # Initialize weights
-    weights = initialize_weights(input_size, output_size)
+class FullyConnectedLayer:
+    def __init__(self, input_size, output_size):
+        self.weights = np.random.randn(input_size, output_size)
+        self.bias = np.zeros((1, output_size))
 
-    for epoch in range(epochs):
-        # Forward pass
-        y_pred = forward_pass(X_train, weights)
-
-        # Calculate loss
-        loss = mse_loss(y_train, y_pred)
-
-        # Backward pass (update weights)
-        weights = backward_pass(X_train, y_train, y_pred, weights, learning_rate)
-
-        # Print loss for every 100 epochs
-        if epoch % 100 == 0:
-            print(f'Epoch {epoch}, Loss: {loss}')
-
-    return weights
+    def forward(self, X):
+        self.input = X
+        self.fc_output = np.dot(X, self.weights) + self.bias
+        return self.fc_output
 
 # Example usage
 # Assuming X_train is your feature matrix and y_train is your label matrix
 # X_train and y_train should be NumPy arrays
 
 # Create some dummy data for demonstration
-X_train = np.random.rand(100, 10)  # Replace this with your actual feature matrix
+X_train = np.random.rand(100, 3, 10, 10)  # Replace this with your actual feature matrix
 y_train = np.random.randint(0, 2, size=(100, 1))  # Replace this with your actual label matrix
 
-# Train the neural network
-trained_weights = train_neural_network(X_train, y_train, epochs=1000, learning_rate=0.01)
+# Initialize the convolutional layer
+conv_layer = Conv2DLayer(input_channels=3, output_channels=16, kernel_size=3, stride=1, padding=1)
 
-# Test the neural network on new data
-# Perform a forward pass with the trained weights
-# You can then use the output for making predictions
+# Forward pass through the convolutional layer
+conv_output = conv_layer.forward(X_train)
+
+# Initialize the fully connected layer
+fc_layer = FullyConnectedLayer(input_size=16 * 10 * 10, output_size=1)
+
+# Flatten the output of the convolutional layer
+flattened_output = conv_output.reshape(X_train.shape[0], -1)
+
+# Forward pass through the fully connected layer
+fc_output = fc_layer.forward(flattened_output)
+
+# Now you can use fc_output for making predictions or further training

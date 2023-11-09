@@ -97,6 +97,9 @@ for filename in os.listdir(input_folder):
         audio_path = os.path.join(input_folder, filename)
         generate_and_save_spectrogram(audio_path, output_folder, FRAME_SIZE, HOP_SIZE)
 
+# Initialize an empty list to store feature vectors
+feature_vectors = []
+
 # Process all spectrograms in the output folder
 for filename in os.listdir(output_folder):
     if filename.endswith("_spectrogram.png"):
@@ -104,11 +107,22 @@ for filename in os.listdir(output_folder):
         
         # Extract features from the spectrogram
         feature_vector = extract_features_from_spectrogram(spectro_path, librosa.get_samplerate(audio_path))
-
+        
         # Create a valid filename for saving the features
         valid_filename = ''.join(e for e in filename if e.isalnum() or e in ['_', '-'])
         features_path = os.path.join(features_folder, f"{os.path.splitext(valid_filename)[0]}_features.npy")
         
         np.save(features_path, feature_vector)
+        
+        # Append the feature vector to the list
+        feature_vectors.append(feature_vector)
 
+# Convert the list of feature vectors to a NumPy array
+feature_matrix = np.array(feature_vectors)
+
+# Save the feature matrix
+save_path = "K:/Thesis/featureMatrix/feature_matrix.npy"
+np.save(save_path, feature_matrix)
+
+print(f"Shape of Feature Matrix: {feature_matrix.shape}")
 print("Features extracted and saved successfully.")
