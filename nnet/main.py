@@ -10,7 +10,6 @@ class Conv2DLayer:
         self.padding = padding
 
     def forward(self, X):
-        # Assume X is a 4D tensor (batch_size, input_channels, height, width)
         batch_size, input_channels, input_height, input_width = X.shape
         kernel_size = self.weights.shape[2]
         output_channels = self.weights.shape[0]
@@ -19,10 +18,10 @@ class Conv2DLayer:
         output_height = (input_height - kernel_size + 2 * self.padding) // self.stride + 1
         output_width = (input_width - kernel_size + 2 * self.padding) // self.stride + 1
 
-        # Apply convolution operation
-        self.input = X
+        # Initialize the output tensor
         self.conv_output = np.zeros((batch_size, output_channels, output_height, output_width))
 
+        # Apply convolution operation
         for i in range(output_height):
             for j in range(output_width):
                 h_start = i * self.stride
@@ -30,11 +29,20 @@ class Conv2DLayer:
                 w_start = j * self.stride
                 w_end = w_start + kernel_size
 
+                # Extract the receptive field
                 receptive_field = X[:, :, h_start:h_end, w_start:w_end]
-                self.conv_output[:, :, i, j] = np.sum(receptive_field * self.weights, axis=(1, 2, 3)) + self.bias
+
+                # Perform element-wise multiplication and sum over the kernel dimensions and input channels
+                # The shape of conv_sum should be (batch_size, output_channels)
+                conv_sum = np.sum(receptive_field[:, None, :, :] * self.weights, axis=(2, 3, 1))
+
+                # Add bias
+                # Bias is broadcasted automatically along the batch size dimension
+                self.conv_output[:, :, i, j] = conv_sum + self.bias[0, :]
 
         return self.conv_output
 
+    
 class FullyConnectedLayer:
     def __init__(self, input_size, output_size):
         self.weights = np.random.randn(input_size, output_size)
@@ -53,46 +61,33 @@ class FullyConnectedLayer:
 def load_spectrogram(file_path):
     spectrogram = plt.imread(file_path)
     spectrogram = spectrogram / spectrogram.max()
+    # Add a channel dimension if it's grayscale
+    if len(spectrogram.shape) == 2:
+        spectrogram = spectrogram[:, :, np.newaxis]  # Adds a single channel
     return spectrogram
 
-def prepare_data(input_folder, label_file_path):
+def prepare_data(spectrogram_folder, label_matrix_file):
     X = []
-    for filename in sorted(os.listdir(input_folder)):
+    for filename in sorted(os.listdir(spectrogram_folder)):
         if filename.endswith("_spectrogram.png"):
-            file_path = os.path.join(input_folder, filename)
+            file_path = os.path.join(spectrogram_folder, filename)
             spectrogram = load_spectrogram(file_path)
-            spectrogram = spectrogram[:, :, None]  # Add a channel dimension
             X.append(spectrogram)
-
-    X = np.stack(X, axis=0)
+    X = np.stack(X, axis=0)  # This creates a 4D tensor
 
     # Load label matrix
-    y = np.load(label_file_path, allow_pickle=True)
-    
-    # Print shapes for debugging
-    print(f"Shape of X: {X.shape}")
-    print(f"Shape of y: {y.shape}")
-
-    # Ensure the number of samples matches between features and labels
-    assert X.shape[0] == y.shape[0], "Mismatch in the number of samples between features and labels."
+    y = np.load(label_matrix_file, allow_pickle=True)
 
     return X, y
 
-
-
-
-
-# Path to the label matrix file
-label_file_path = "K:/Thesis/labelMapping/label_mapping.npy"
+# Paths to Folders
+spectrogram_folder = "K:/Thesis/spectro"
+label_matrix_file = "K:/Thesis/labelMapping/label_mapping.npy"
 
 # Load and Prepare Data
-X_train, y_train = prepare_data("K:/Thesis/spectro", label_file_path)
+X_train, y_train = prepare_data(spectrogram_folder, label_matrix_file)
 
-# Print shapes to verify
-print(f"Shape of X_train: {X_train.shape}")
-print(f"Shape of y_train: {y_train.shape}")
 # Initialize the convolutional layer
-# Modify input_channels based on your spectrogram's channel (1 for grayscale, 3 for RGB)
 conv_layer = Conv2DLayer(input_channels=1, output_channels=16, kernel_size=3, stride=1, padding=1)
 
 # Forward pass through the convolutional layer
@@ -110,4 +105,6 @@ flattened_output = conv_output.reshape(X_train.shape[0], -1)
 # Forward pass through the fully connected layer
 fc_output = fc_layer.forward(flattened_output)
 
-# Now fc_output contains the sigmoid-activated outputs for each label
+# Print shapes to verify
+print(f"Shape of X_train: {X_train.shape}")
+print(f"Shape of y_train: {y_train.shape}")
