@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 input_folder = "K:/Thesis/labeled_dataset"
 output_folder = "K:/Thesis/spectro"
 features_folder = "K:/Thesis/features"
+matrix_folder = "K:/Thesis/featureMatrix"
 FRAME_SIZE = 2048
 HOP_SIZE = 512
 
@@ -25,6 +26,7 @@ def clear_folder(folder_path):
 # Clear the contents of the output folder
 clear_folder(output_folder)
 clear_folder(features_folder)
+clear_folder(matrix_folder)
 
 def generate_and_save_spectrogram(audio_file, output_folder, frame_size=2048, hop_size=512):
     audio, sr = librosa.load(audio_file)
@@ -126,3 +128,6 @@ np.save(save_path, feature_matrix)
 
 print(f"Shape of Feature Matrix: {feature_matrix.shape}")
 print("Features extracted and saved successfully.")
+
+feature_matrix = np.load("K:/Thesis/featureMatrix/feature_matrix.npy")
+print("Shape of the Feature Matrix:", feature_matrix.shape)

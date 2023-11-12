@@ -14,6 +14,12 @@ class Conv2DLayer:
         kernel_size = self.weights.shape[2]
         output_channels = self.weights.shape[0]
 
+        # Apply padding if necessary
+        if self.padding > 0:
+            X_padded = np.pad(X, ((0, 0), (0, 0), (self.padding, self.padding), (self.padding, self.padding)), mode='constant')
+        else:
+            X_padded = X
+
         # Compute output dimensions
         output_height = (input_height - kernel_size + 2 * self.padding) // self.stride + 1
         output_width = (input_width - kernel_size + 2 * self.padding) // self.stride + 1
@@ -30,15 +36,15 @@ class Conv2DLayer:
                 w_end = w_start + kernel_size
 
                 # Extract the receptive field
-                receptive_field = X[:, :, h_start:h_end, w_start:w_end]
+                receptive_field = X_padded[:, :, h_start:h_end, w_start:w_end]
 
-                # Perform element-wise multiplication and sum over the kernel dimensions and input channels
-                # The shape of conv_sum should be (batch_size, output_channels)
-                conv_sum = np.sum(receptive_field[:, None, :, :] * self.weights, axis=(2, 3, 1))
+                for k in range(output_channels):
+                    # Perform element-wise multiplication and sum over the kernel dimensions and input channels
+                    conv_result = receptive_field * self.weights[k, :, :, :]
+                    conv_sum = np.sum(conv_result, axis=(1, 2, 3))
 
-                # Add bias
-                # Bias is broadcasted automatically along the batch size dimension
-                self.conv_output[:, :, i, j] = conv_sum + self.bias[0, :]
+                    # Add bias
+                    self.conv_output[:, k, i, j] = conv_sum + self.bias[0, k]
 
         return self.conv_output
 
@@ -59,11 +65,9 @@ class FullyConnectedLayer:
 
 # Function to Load a Single Spectrogram
 def load_spectrogram(file_path):
+    # Load the image as is (in RGB format)
     spectrogram = plt.imread(file_path)
-    spectrogram = spectrogram / spectrogram.max()
-    # Add a channel dimension if it's grayscale
-    if len(spectrogram.shape) == 2:
-        spectrogram = spectrogram[:, :, np.newaxis]  # Adds a single channel
+    spectrogram = spectrogram / spectrogram.max()  # Normalize the pixel values
     return spectrogram
 
 def prepare_data(spectrogram_folder, label_matrix_file):
@@ -88,7 +92,7 @@ label_matrix_file = "K:/Thesis/labelMapping/label_mapping.npy"
 X_train, y_train = prepare_data(spectrogram_folder, label_matrix_file)
 
 # Initialize the convolutional layer
-conv_layer = Conv2DLayer(input_channels=1, output_channels=16, kernel_size=3, stride=1, padding=1)
+conv_layer = Conv2DLayer(input_channels=3, output_channels=16, kernel_size=3, stride=1, padding=1)
 
 # Forward pass through the convolutional layer
 conv_output = conv_layer.forward(X_train)

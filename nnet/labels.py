@@ -2,6 +2,25 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 
+matrix_folder = "K:/Thesis/labelMapping"
+FRAME_SIZE = 2048
+HOP_SIZE = 512
+
+# Function to clear the contents of a folder
+def clear_folder(folder_path):
+    for filename in os.listdir(folder_path):
+        file_path = os.path.join(folder_path, filename)
+        try:
+            if os.path.isfile(file_path) or os.path.islink(file_path):
+                os.unlink(file_path)
+            elif os.path.isdir(file_path):
+                shutil.rmtree(file_path)
+        except Exception as e:
+            print(f"Failed to delete {file_path}. Reason: {e}")
+
+# Clear the contents of the output folder
+clear_folder(matrix_folder)
+
 def load_spectrogram(file_path):
     spectrogram = plt.imread(file_path)
     spectrogram = spectrogram / spectrogram.max()
@@ -48,20 +67,19 @@ def load_dataset(data_folder):
 # Example usage
 data_folder = "K:/Thesis/labeled_dataset"
 spectrogram_folder = "K:/Thesis/spectro"
-label_mapping_file = "K:/Thesis/labelMapping/label_mapping.npy"
+label_matrix_file = "K:/Thesis/labelMapping/label_matrix.npy"
+label_mapping_file = "K:/Thesis/labelMapping/label_to_index.npy"
 
-# Load the dataset and get the label matrix and label-to-index mapping
+# Load dataset and save label matrix and mapping
 label_matrix, label_to_index = load_dataset(data_folder)
-np.save(label_mapping_file, label_to_index)  # Save the label-to-index mapping
+np.save(label_matrix_file, label_matrix)
+np.save(label_mapping_file, label_to_index)
 
 # Load and prepare spectrogram data
-X_train, y_train = prepare_data(spectrogram_folder, label_mapping_file)
+X_train, y_train = prepare_data(spectrogram_folder, label_matrix_file)
 
-# Print the label matrix and label-to-index mapping
-print("Label Matrix:")
-print(label_matrix)
-print("\nLabel to Index Mapping:")
-print(label_to_index)
+# Reshape X_train to remove the extra dimension
+X_train = X_train[:, :, :, :, 0]  # New shape: (100, 1000, 2500, 1)
 
 # Print shapes to verify
 print(f"Shape of X_train: {X_train.shape}")
