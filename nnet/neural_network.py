@@ -1,5 +1,24 @@
 import numpy as np
 
+def relu(x):
+    return np.maximum(0, x)
+
+def sigmoid(x):
+    return np.where(x >= 0, 
+                    1 / (1 + np.exp(-x)), 
+                    np.exp(x) / (np.exp(x) + 1))
+
+def binary_crossentropy(y_true, y_pred):
+    epsilon = 1e-15
+    y_pred = np.clip(y_pred, epsilon, 1 - epsilon)
+    return -np.mean(y_true * np.log(y_pred) + (1 - y_true) * np.log(1 - y_pred))
+
+def update_weights(weights, bias, dw, db, learning_rate):
+    weights -= learning_rate * dw
+    bias -= learning_rate * db
+    return weights, bias
+
+
 class Conv2DLayer:
     def __init__(self, input_channels, output_channels, kernel_size, stride, padding):
         self.weights = np.random.randn(output_channels, input_channels, kernel_size, kernel_size) * 0.1
@@ -28,7 +47,7 @@ class Conv2DLayer:
                 X_slice = X_padded[:, :, h_start:h_end, w_start:w_end]
                 for k in range(self.weights.shape[0]):
                     output[:, k, i, j] = np.sum(X_slice * self.weights[k, :, :, :], axis=(1, 2, 3)) + self.bias[0, k]
-        return output
+        return relu(output)
 
 class FullyConnectedLayer:
     def __init__(self, input_size, output_size):
@@ -38,7 +57,7 @@ class FullyConnectedLayer:
     def forward(self, X):
         X_flattened = X.reshape(X.shape[0], -1)
         output = np.dot(X_flattened, self.weights) + self.bias
-        return output
+        return sigmoid(output)
     
 # Load the feature matrix (Shape: 100 samples, 7x7 features each)
 feature_matrix = np.load("K:/Thesis/featureMatrix/4d_matrix.npy")
@@ -60,3 +79,24 @@ fc_output = fc_layer.forward(conv_output.reshape(conv_output.shape[0], -1))
 # Output shapes
 print(f"Shape of Convolutional Output: {conv_output.shape}")
 print(f"Shape of Fully Connected Layer Output: {fc_output.shape}")
+
+learning_rate = 0.01
+epochs = 10  # Example number of epochs
+
+for epoch in range(epochs):
+    # Forward Pass
+    conv_output = conv_layer.forward(feature_matrix)
+    fc_output = fc_layer.forward(conv_output.reshape(conv_output.shape[0], -1))
+
+    # Compute Loss
+    loss = binary_crossentropy(label_matrix, fc_output)
+
+    # Backward Pass (compute gradients) - Pseudocode
+    # Note: Implementing this part is complex and requires detailed calculations
+    dw_conv, db_conv, dw_fc, db_fc = ...  # Calculate gradients
+
+    # Update Weights using SGD Optimizer
+    conv_layer.weights, conv_layer.bias = update_weights(conv_layer.weights, conv_layer.bias, dw_conv, db_conv, learning_rate)
+    fc_layer.weights, fc_layer.bias = update_weights(fc_layer.weights, fc_layer.bias, dw_fc, db_fc, learning_rate)
+
+    print(f"Epoch {epoch+1}/{epochs}, Loss: {loss}")
