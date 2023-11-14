@@ -126,8 +126,8 @@ feature_matrix = np.array(feature_vectors)
 save_path = "K:/Thesis/featureMatrix/feature_matrix.npy"
 np.save(save_path, feature_matrix)
 
-print(f"Shape of Feature Matrix: {feature_matrix.shape}")
-print("Features extracted and saved successfully.")
-
 feature_matrix = np.load("K:/Thesis/featureMatrix/feature_matrix.npy")
 print("Shape of the Feature Matrix:", feature_matrix.shape)
+print("Features extracted and saved successfully.\n\n")
+
+# Shape of the Feature Matrix: (100, 180125)

@@ -19,4 +19,6 @@ reshaped_feature_matrix = np.reshape(reduced_feature_matrix, (reduced_feature_ma
 reshaped_save_path = "K:/Thesis/featureMatrix/4d_matrix.npy"
 np.save(reshaped_save_path, reshaped_feature_matrix)
 
-print(f"Shape of Reshaped Feature Matrix: {reshaped_feature_matrix.shape}")
+print(f"Shape of Reshaped Feature Matrix: {reshaped_feature_matrix.shape} \n\n")
+
+# Shape of Reshaped Feature Matrix: (100, 7, 7)

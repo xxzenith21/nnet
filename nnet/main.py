@@ -1,114 +1,118 @@
 import numpy as np
-import matplotlib.pyplot as plt
-import os
+import pandas as pd
+from matplotlib import pyplot as plt
+
+def relu(x):
+    return np.maximum(0, x)
+
+def sigmoid(x):
+    x_clipped = np.clip(x, -709, 709)  # Clip values to avoid overflow
+    return 1 / (1 + np.exp(-x_clipped))
+
+def binary_crossentropy(y_true, y_pred):
+    epsilon = 1e-15
+    y_pred = np.clip(y_pred, epsilon, 1 - epsilon)
+    return -np.mean(y_true * np.log(y_pred) + (1 - y_true) * np.log(1 - y_pred))
+
+def sigmoid_derivative(x):
+    return sigmoid(x) * (1 - sigmoid(x))
+
+def back_prop(conv_layer, fc_layer, X, Y, conv_output, fc_output):
+    m = Y.shape[0]
+
+    # Gradient of loss w.r.t the output of the fully connected layer
+    dA2 = fc_output - Y
+    dZ2 = dA2 * sigmoid_derivative(fc_output)
+    dW2 = np.dot(conv_output.reshape(m, -1).T, dZ2) / m
+    db2 = np.sum(dZ2, axis=0, keepdims=True) / m
+
+    # Backpropagation through the convolutional layer would go here
+    # Placeholder for convolutional layer gradients
+    dW1, db1 = np.zeros_like(conv_layer.weights), np.zeros_like(conv_layer.bias)
+
+    return dW1, db1, dW2, db2
+
+def update_weights(layer, dw, db, learning_rate):
+    layer.weights -= learning_rate * dw
+    layer.bias -= learning_rate * db
+
+def gradient_descent(X, Y, alpha, epochs, conv_layer, fc_layer):
+    for epoch in range(epochs):
+        conv_output = conv_layer.forward(X)
+        fc_output = fc_layer.forward(conv_output.reshape(conv_output.shape[0], -1))
+
+        loss = binary_crossentropy(Y, fc_output)
+        dW1, db1, dW2, db2 = back_prop(conv_layer, fc_layer, X, Y, conv_output, fc_output)
+
+        update_weights(conv_layer, dW1, db1, alpha)
+        update_weights(fc_layer, dW2, db2, alpha)
+
+        if epoch % 10 == 0:
+            print(f"Epoch {epoch + 1}/{epochs}, Loss: {loss}")
+
+
 
 class Conv2DLayer:
     def __init__(self, input_channels, output_channels, kernel_size, stride, padding):
-        self.weights = np.random.randn(output_channels, input_channels, kernel_size, kernel_size)
+        self.weights = np.random.randn(output_channels, input_channels, kernel_size, kernel_size) * 0.1
         self.bias = np.zeros((1, output_channels))
         self.stride = stride
         self.padding = padding
 
     def forward(self, X):
-        batch_size, input_channels, input_height, input_width = X.shape
-        kernel_size = self.weights.shape[2]
-        output_channels = self.weights.shape[0]
+        # Add padding
+        X_padded = np.pad(X, [(0, 0), (0, 0), (self.padding, self.padding), (self.padding, self.padding)], mode='constant')
+        
+        batch_size, input_channels, input_height, input_width = X_padded.shape
+        kernel_height, kernel_width = self.weights.shape[2], self.weights.shape[3]
+        output_height = (input_height - kernel_height) // self.stride + 1
+        output_width = (input_width - kernel_width) // self.stride + 1
 
-        # Apply padding if necessary
-        if self.padding > 0:
-            X_padded = np.pad(X, ((0, 0), (0, 0), (self.padding, self.padding), (self.padding, self.padding)), mode='constant')
-        else:
-            X_padded = X
+        # Output tensor
+        output = np.zeros((batch_size, self.weights.shape[0], output_height, output_width))
 
-        # Compute output dimensions
-        output_height = (input_height - kernel_size + 2 * self.padding) // self.stride + 1
-        output_width = (input_width - kernel_size + 2 * self.padding) // self.stride + 1
-
-        # Initialize the output tensor
-        self.conv_output = np.zeros((batch_size, output_channels, output_height, output_width))
-
-        # Apply convolution operation
         for i in range(output_height):
             for j in range(output_width):
                 h_start = i * self.stride
-                h_end = h_start + kernel_size
+                h_end = h_start + kernel_height
                 w_start = j * self.stride
-                w_end = w_start + kernel_size
+                w_end = w_start + kernel_width
+                X_slice = X_padded[:, :, h_start:h_end, w_start:w_end]
+                for k in range(self.weights.shape[0]):
+                    output[:, k, i, j] = np.sum(X_slice * self.weights[k, :, :, :], axis=(1, 2, 3)) + self.bias[0, k]
+        return relu(output)
 
-                # Extract the receptive field
-                receptive_field = X_padded[:, :, h_start:h_end, w_start:w_end]
-
-                for k in range(output_channels):
-                    # Perform element-wise multiplication and sum over the kernel dimensions and input channels
-                    conv_result = receptive_field * self.weights[k, :, :, :]
-                    conv_sum = np.sum(conv_result, axis=(1, 2, 3))
-
-                    # Add bias
-                    self.conv_output[:, k, i, j] = conv_sum + self.bias[0, k]
-
-        return self.conv_output
-
-    
 class FullyConnectedLayer:
     def __init__(self, input_size, output_size):
-        self.weights = np.random.randn(input_size, output_size)
+        self.weights = np.random.randn(input_size, output_size) * 0.1
         self.bias = np.zeros((1, output_size))
 
     def forward(self, X):
-        self.input = X
-        self.fc_output = np.dot(X, self.weights) + self.bias
-        return self.sigmoid(self.fc_output)  # Apply sigmoid activation function
+        X_flattened = X.reshape(X.shape[0], -1)
+        output = np.dot(X_flattened, self.weights) + self.bias
+        return sigmoid(output)
+    
+# Load the feature matrix (Shape: 100 samples, 7x7 features each)
+feature_matrix = np.load("K:/Thesis/featureMatrix/4d_matrix.npy")
 
-    @staticmethod
-    def sigmoid(x):
-        return 1 / (1 + np.exp(-x))
+# Expand dimensions of feature_matrix to add channel dimension
+feature_matrix = np.expand_dims(feature_matrix, axis=1)  # Shape: (100, 1, 7, 7)
 
-# Function to Load a Single Spectrogram
-def load_spectrogram(file_path):
-    # Load the image as is (in RGB format)
-    spectrogram = plt.imread(file_path)
-    spectrogram = spectrogram / spectrogram.max()  # Normalize the pixel values
-    return spectrogram
+# Shape: (100, 1000, 2500, 1)
+label_matrix = np.load("K:/Thesis/labelMapping/label_matrix.npy", allow_pickle=True)
 
-def prepare_data(spectrogram_folder, label_matrix_file):
-    X = []
-    for filename in sorted(os.listdir(spectrogram_folder)):
-        if filename.endswith("_spectrogram.png"):
-            file_path = os.path.join(spectrogram_folder, filename)
-            spectrogram = load_spectrogram(file_path)
-            X.append(spectrogram)
-    X = np.stack(X, axis=0)  # This creates a 4D tensor
+# Neural network architecture
+conv_layer = Conv2DLayer(input_channels=1, output_channels=16, kernel_size=3, stride=2, padding=1)
+fc_layer = FullyConnectedLayer(input_size=16 * 4 * 4, output_size=96)  # Adjust output size to match the number of labels (96)
 
-    # Load label matrix
-    y = np.load(label_matrix_file, allow_pickle=True)
+# Forward pass through the network
+conv_output = conv_layer.forward(feature_matrix)
+fc_output = fc_layer.forward(conv_output.reshape(conv_output.shape[0], -1))
 
-    return X, y
+print(f"Convolutional Layer Output Shape: {conv_output.shape}")
+print(f"Fully Connected Layer Output Shape: {fc_output.shape}")
 
-# Paths to Folders
-spectrogram_folder = "K:/Thesis/spectro"
-label_matrix_file = "K:/Thesis/labelMapping/label_mapping.npy"
+learning_rate = 0.01
+epochs = 100  # Adjust as necessary
+gradient_descent(feature_matrix, label_matrix, learning_rate, epochs, conv_layer, fc_layer)
 
-# Load and Prepare Data
-X_train, y_train = prepare_data(spectrogram_folder, label_matrix_file)
-
-# Initialize the convolutional layer
-conv_layer = Conv2DLayer(input_channels=3, output_channels=16, kernel_size=3, stride=1, padding=1)
-
-# Forward pass through the convolutional layer
-conv_output = conv_layer.forward(X_train)
-
-# Compute the size for the fully connected layer's input
-fc_input_size = np.prod(conv_output.shape[1:])
-
-# Initialize the fully connected layer
-fc_layer = FullyConnectedLayer(input_size=fc_input_size, output_size=10)
-
-# Flatten the output of the convolutional layer
-flattened_output = conv_output.reshape(X_train.shape[0], -1)
-
-# Forward pass through the fully connected layer
-fc_output = fc_layer.forward(flattened_output)
-
-# Print shapes to verify
-print(f"Shape of X_train: {X_train.shape}")
-print(f"Shape of y_train: {y_train.shape}")

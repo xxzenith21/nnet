@@ -1,22 +1,61 @@
+import os
 import numpy as np
+import pandas as pd
+import librosa.display
+from matplotlib import pyplot as plt
+import spectro
+import matrix_convert
+import labels
 
+# NEURAL NETWORK MAIN
 def relu(x):
     return np.maximum(0, x)
 
 def sigmoid(x):
-    return np.where(x >= 0, 
-                    1 / (1 + np.exp(-x)), 
-                    np.exp(x) / (np.exp(x) + 1))
+    x_clipped = np.clip(x, -709, 709)  # Clip values to avoid overflow
+    return 1 / (1 + np.exp(-x_clipped))
 
 def binary_crossentropy(y_true, y_pred):
     epsilon = 1e-15
     y_pred = np.clip(y_pred, epsilon, 1 - epsilon)
     return -np.mean(y_true * np.log(y_pred) + (1 - y_true) * np.log(1 - y_pred))
 
-def update_weights(weights, bias, dw, db, learning_rate):
-    weights -= learning_rate * dw
-    bias -= learning_rate * db
-    return weights, bias
+def sigmoid_derivative(x):
+    return sigmoid(x) * (1 - sigmoid(x))
+
+def back_prop(conv_layer, fc_layer, X, Y, conv_output, fc_output):
+    m = Y.shape[0]
+
+    # Gradient of loss w.r.t the output of the fully connected layer
+    dA2 = fc_output - Y
+    dZ2 = dA2 * sigmoid_derivative(fc_output)
+    dW2 = np.dot(conv_output.reshape(m, -1).T, dZ2) / m
+    db2 = np.sum(dZ2, axis=0, keepdims=True) / m
+
+    # Backpropagation through the convolutional layer would go here
+    # Placeholder for convolutional layer gradients
+    dW1, db1 = np.zeros_like(conv_layer.weights), np.zeros_like(conv_layer.bias)
+
+    return dW1, db1, dW2, db2
+
+def update_weights(layer, dw, db, learning_rate):
+    layer.weights -= learning_rate * dw
+    layer.bias -= learning_rate * db
+
+def gradient_descent(X, Y, alpha, epochs, conv_layer, fc_layer):
+    for epoch in range(epochs):
+        conv_output = conv_layer.forward(X)
+        fc_output = fc_layer.forward(conv_output.reshape(conv_output.shape[0], -1))
+
+        loss = binary_crossentropy(Y, fc_output)
+        dW1, db1, dW2, db2 = back_prop(conv_layer, fc_layer, X, Y, conv_output, fc_output)
+
+        update_weights(conv_layer, dW1, db1, alpha)
+        update_weights(fc_layer, dW2, db2, alpha)
+
+        if epoch % 10 == 0:
+            print(f"Epoch {epoch + 1}/{epochs}, Loss: {loss}")
+
 
 
 class Conv2DLayer:
@@ -76,27 +115,10 @@ fc_layer = FullyConnectedLayer(input_size=16 * 4 * 4, output_size=96)  # Adjust 
 conv_output = conv_layer.forward(feature_matrix)
 fc_output = fc_layer.forward(conv_output.reshape(conv_output.shape[0], -1))
 
-# Output shapes
-print(f"Shape of Convolutional Output: {conv_output.shape}")
-print(f"Shape of Fully Connected Layer Output: {fc_output.shape}")
+print(f"Convolutional Layer Output Shape: {conv_output.shape}")
+print(f"Fully Connected Layer Output Shape: {fc_output.shape}")
 
 learning_rate = 0.01
-epochs = 10  # Example number of epochs
+epochs = 100  # Adjust as necessary
+gradient_descent(feature_matrix, label_matrix, learning_rate, epochs, conv_layer, fc_layer)
 
-for epoch in range(epochs):
-    # Forward Pass
-    conv_output = conv_layer.forward(feature_matrix)
-    fc_output = fc_layer.forward(conv_output.reshape(conv_output.shape[0], -1))
-
-    # Compute Loss
-    loss = binary_crossentropy(label_matrix, fc_output)
-
-    # Backward Pass (compute gradients) - Pseudocode
-    # Note: Implementing this part is complex and requires detailed calculations
-    dw_conv, db_conv, dw_fc, db_fc = ...  # Calculate gradients
-
-    # Update Weights using SGD Optimizer
-    conv_layer.weights, conv_layer.bias = update_weights(conv_layer.weights, conv_layer.bias, dw_conv, db_conv, learning_rate)
-    fc_layer.weights, fc_layer.bias = update_weights(fc_layer.weights, fc_layer.bias, dw_fc, db_fc, learning_rate)
-
-    print(f"Epoch {epoch+1}/{epochs}, Loss: {loss}")

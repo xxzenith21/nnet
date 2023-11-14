@@ -82,5 +82,9 @@ X_train, y_train = prepare_data(spectrogram_folder, label_matrix_file)
 X_train = X_train[:, :, :, :, 0]  # New shape: (100, 1000, 2500, 1)
 
 # Print shapes to verify
-print(f"Shape of X_train: {X_train.shape}")
-print(f"Shape of y_train: {y_train.shape}")
+print(f"Shape of Label Matrix: {X_train.shape}")
+print(f"Shape of Label-to-Index Mapping: {y_train.shape} \n\n")
+
+
+# Shape of X_train: (100, 1000, 2500, 1)
+# Shape of y_train: (100, 96)
