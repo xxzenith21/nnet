@@ -3,9 +3,9 @@ import numpy as np
 import pandas as pd
 import librosa.display
 from matplotlib import pyplot as plt
-import spectro
-import matrix_convert
-import labels
+# import spectro
+# import matrix_convert
+# import labels
 
 # NEURAL NETWORK MAIN
 def relu(x):
@@ -97,6 +97,22 @@ class FullyConnectedLayer:
         X_flattened = X.reshape(X.shape[0], -1)
         output = np.dot(X_flattened, self.weights) + self.bias
         return sigmoid(output)
+
+def visualize_feature_maps(output, num_filters):
+    # Set up the subplot dimensions
+    cols = rows = int(np.ceil(np.sqrt(num_filters)))
+
+    # Create a figure to plot the feature maps
+    plt.figure(figsize=(15, 15))
+
+    # Plot each feature map
+    for i in range(num_filters):
+        ax = plt.subplot(cols, rows, i + 1)
+        plt.imshow(output[0, i, :, :], cmap='gray')  # Assuming grayscale feature maps
+        plt.axis('off')
+
+    # Display the feature maps
+    plt.show()
     
 # Load the feature matrix (Shape: 100 samples, 7x7 features each)
 feature_matrix = np.load("K:/Thesis/featureMatrix/4d_matrix.npy")
@@ -114,6 +130,9 @@ fc_layer = FullyConnectedLayer(input_size=16 * 4 * 4, output_size=96)  # Adjust 
 # Forward pass through the network
 conv_output = conv_layer.forward(feature_matrix)
 fc_output = fc_layer.forward(conv_output.reshape(conv_output.shape[0], -1))
+
+# Visualization of the feature maps
+visualize_feature_maps(conv_output, num_filters=16)  # Assuming 16 filters in conv_layer
 
 print(f"Convolutional Layer Output Shape: {conv_output.shape}")
 print(f"Fully Connected Layer Output Shape: {fc_output.shape}")
