@@ -131,9 +131,6 @@ fc_layer = FullyConnectedLayer(input_size=16 * 4 * 4, output_size=96)  # Adjust 
 conv_output = conv_layer.forward(feature_matrix)
 fc_output = fc_layer.forward(conv_output.reshape(conv_output.shape[0], -1))
 
-# Visualization of the feature maps
-visualize_feature_maps(conv_output, num_filters=16)  # Assuming 16 filters in conv_layer
-
 print(f"Convolutional Layer Output Shape: {conv_output.shape}")
 print(f"Fully Connected Layer Output Shape: {fc_output.shape}")
 
@@ -141,3 +138,5 @@ learning_rate = 0.01
 epochs = 100  # Adjust as necessary
 gradient_descent(feature_matrix, label_matrix, learning_rate, epochs, conv_layer, fc_layer)
 
+# Visualization of the feature maps
+visualize_feature_maps(conv_output, num_filters=16)  # Assuming 16 filters in conv_layer
