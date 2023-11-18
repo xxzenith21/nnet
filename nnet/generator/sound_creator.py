@@ -5,6 +5,22 @@ from pyo import *
 
 dataset_output = "K:/Thesis/synth_settings_dataset"
 
+# Function to clear the contents of a folder
+def clear_folder(folder_path):
+    for filename in os.listdir(folder_path):
+        file_path = os.path.join(folder_path, filename)
+        try:
+            if os.path.isfile(file_path) or os.path.islink(file_path):
+                os.unlink(file_path)
+            elif os.path.isdir(file_path):
+                shutil.rmtree(file_path)
+        except Exception as e:
+            print(f"Failed to delete {file_path}. Reason: {e}")
+
+# Clear the contents of the output folder
+clear_folder(dataset_output)
+
+
 def generate_synthesizer_parameters():
     # Random selection of parameters
     params = {
@@ -23,8 +39,8 @@ def generate_synthesizer_parameters():
         "distortion_drive": random.uniform(0.1, 1),  # Distortion drive amount
         "distortion_mix": random.uniform(0.1, 0.9),  # Distortion mix level
 
-        "reverb_feedback": random.uniform(0.1, 0.9),  # Reverb feedback
-        "reverb_dampening": random.uniform(0.1, 0.5),  # Reverb dampening
+        "reverb_size": random.uniform(0.5, 1),  # Reverb room size
+        "reverb_damp": random.uniform(0.1, 0.5),  # Reverb dampening
         "reverb_mix": random.uniform(0.1, 0.9),  # Reverb mix level
 
         "attack": random.uniform(0.01, 1),  # ADSR attack range
@@ -34,11 +50,12 @@ def generate_synthesizer_parameters():
 
         "filter_drive": random.uniform(0.1, 1),  # Filter drive amount
         "filter_envelope_depth": random.uniform(0.1, 1),  # Filter envelope depth
+        "filter_freq": random.uniform(500, 5000),  # Filter cutoff frequency in Hz
         "filter_key_track": random.uniform(0.1, 1)  # Filter key track
     }
     return params
 
-def synthesize_sound(params, file_path):
+def synthesize_sound(params, file_path, server):
     s = Server().boot()
     s.start()
 
@@ -48,9 +65,11 @@ def synthesize_sound(params, file_path):
     elif params['oscillator_type'] == 'Saw':
         osc = SuperSaw(freq=params['tune'], detune=params['transposition'], mul=0.3)
     elif params['oscillator_type'] == 'Square':
-        osc = SquareTable().lookup(SigTo(params['tune'], params['transposition']))
+        square_table = SquareTable()
+        osc = Osc(table=square_table, freq=params['tune'], mul=0.3)
     elif params['oscillator_type'] == 'Triangle':
-        osc = TriangleTable().lookup(SigTo(params['tune'], params['transposition']))
+        triangle_table = TriangleTable()
+        osc = Osc(table=triangle_table, freq=params['tune'], mul=0.3)
     else:
         raise ValueError("Invalid oscillator type")
 
@@ -69,7 +88,10 @@ def synthesize_sound(params, file_path):
     if params['distortion_type'] == 'Soft Clipping':
         dist = Disto(delay, drive=params['distortion_drive'], slope=0.5)
     elif params['distortion_type'] == 'Hard Clipping':
+        dist = Disto(delay, drive=params['distortion_drive'], slope=0.5)  # Initialize with Disto before Clip
         dist = Clip(dist, min=-.5, max=.5)
+    else:
+        dist = delay  # Default to delay if no distortion type is specified
 
     # Reverb
     reverb = Freeverb(dist, size=params['reverb_size'], damp=params['reverb_damp'], bal=params['reverb_mix'])
@@ -77,20 +99,19 @@ def synthesize_sound(params, file_path):
     # Filter
     filt = ButLP(reverb, freq=params['filter_freq'])
 
-    # Output the final processed sound
-    filt.out()
+    # Create Record object to start recording
+    rec = Record(filt, filename=file_path, fileformat=0, sampletype=0)
 
-    # Start ADSR envelope
+    # Start the envelope and let the sound play
     env.play()
 
-    # Record the final sound
-    rec = Record(filt, filename=file_path, fileformat=0, sampletype=0)
-    rec.record()
+    # Wait for the sound to be fully played
+    server.recstart()  # Start server recording
+    time.sleep(params['release'] + 1)  # Use time.sleep() to wait
+    server.recstop()   # Stop server recording
 
-    # Wait for the sound to fully play
-    server.recstart()  # Start recording
-    wait(params['release'] + 1)
-    server.recstop()   # Stop recording
+    # Stop the Record object
+    rec.stop()
 
 def create_dataset(num_samples, dataset_output):
     s = Server().boot()
@@ -119,4 +140,4 @@ def create_dataset(num_samples, dataset_output):
     s.stop()
 
 if __name__ == "__main__":
-    create_dataset(1000, dataset_output)
+    create_dataset(100, dataset_output)
