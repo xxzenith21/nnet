@@ -1,10 +1,8 @@
+import os
+import librosa
+import librosa.display
 import numpy as np
+import matplotlib.pyplot as plt
 
-# Replace 'path_to_your_file.npy' with the actual file path
-file_path = 'K:/Thesis/labelMapping/label_to_index.npy'
-
-# Load the file
-data = np.load(file_path, allow_pickle=True)
-
-# Print the data
-print(data)
+feature_matrix = np.load("K:/Thesis/synth_settings/settings_label_matrix/settings_label_matrix.npy")
+print("Shape of the Feature Matrix:", feature_matrix.shape)

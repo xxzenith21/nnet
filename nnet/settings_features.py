@@ -4,10 +4,10 @@ import librosa.display
 import numpy as np
 import matplotlib.pyplot as plt
 
-input_folder = "K:/Thesis/synth_settings_dataset"
-output_folder = "K:/Thesis/spectro"
-features_folder = "K:/Thesis/features"
-matrix_folder = "K:/Thesis/settings_features"
+input_folder = "K:/Thesis/synth_settings/synth_settings_dataset"
+spectro_folder = "K:/Thesis/synth_settings/settings_spectro"
+features_folder = "K:/Thesis/synth_settings/settings_features"
+matrix_folder = "K:/Thesis/synth_settings/settings_matrix"
 FRAME_SIZE = 2048
 HOP_SIZE = 512
 
@@ -24,11 +24,11 @@ def clear_folder(folder_path):
             print(f"Failed to delete {file_path}. Reason: {e}")
 
 # Clear the contents of the output folder
-# clear_folder(output_folder)
-# clear_folder(features_folder)
+clear_folder(spectro_folder)
+clear_folder(features_folder)
 clear_folder(matrix_folder)
 
-def generate_and_save_spectrogram(audio_file, output_folder, frame_size=2048, hop_size=512):
+def generate_and_save_spectrogram(audio_file, spectro_folder, frame_size=2048, hop_size=512):
     audio, sr = librosa.load(audio_file)
     
     S_audio = librosa.stft(audio, n_fft=frame_size, hop_length=hop_size)
@@ -39,7 +39,7 @@ def generate_and_save_spectrogram(audio_file, output_folder, frame_size=2048, ho
     filename = os.path.splitext(os.path.basename(audio_file))[0]
     
     # Save the spectrogram to the output folder
-    output_path = os.path.join(output_folder, f"{filename}_spectrogram.png")
+    output_path = os.path.join(spectro_folder, f"{filename}_spectrogram.png")
     plot_spectrogram(Y_log_audio, sr, hop_size, y_axis="log", save_path=output_path)
     plt.close()  # Close the figure after saving
 
@@ -97,15 +97,15 @@ def extract_features_from_spectrogram(spectro_path, sr):
 for filename in os.listdir(input_folder):
     if filename.endswith(".wav"):
         audio_path = os.path.join(input_folder, filename)
-        generate_and_save_spectrogram(audio_path, output_folder, FRAME_SIZE, HOP_SIZE)
+        generate_and_save_spectrogram(audio_path, spectro_folder, FRAME_SIZE, HOP_SIZE)
 
 # Initialize an empty list to store feature vectors
 feature_vectors = []
 
 # Process all spectrograms in the output folder
-for filename in os.listdir(output_folder):
+for filename in os.listdir(spectro_folder):
     if filename.endswith("_spectrogram.png"):
-        spectro_path = os.path.join(output_folder, filename)
+        spectro_path = os.path.join(spectro_folder, filename)
         
         # Extract features from the spectrogram
         feature_vector = extract_features_from_spectrogram(spectro_path, librosa.get_samplerate(audio_path))
@@ -123,11 +123,10 @@ for filename in os.listdir(output_folder):
 feature_matrix = np.array(feature_vectors)
 
 # Save the feature matrix
-save_path = "K:/Thesis/featureMatrix/feature_matrix.npy"
+save_path = "K:/Thesis/synth_settings/settings_matrix/settings_feature_matrix.npy"
 np.save(save_path, feature_matrix)
 
-feature_matrix = np.load("K:/Thesis/featureMatrix/feature_matrix.npy")
+feature_matrix = np.load("K:/Thesis/synth_settings/settings_matrix/settings_feature_matrix.npy")
 print("Shape of the Feature Matrix:", feature_matrix.shape)
 print("Features extracted and saved successfully.\n\n")
 
-# Shape of the Feature Matrix: (100, 180125)
