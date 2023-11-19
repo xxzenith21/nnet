@@ -24,8 +24,8 @@ def clear_folder(folder_path):
             print(f"Failed to delete {file_path}. Reason: {e}")
 
 # Clear the contents of the output folder
-clear_folder(output_folder)
-clear_folder(features_folder)
+# clear_folder(output_folder)
+# clear_folder(features_folder)
 clear_folder(matrix_folder)
 
 def generate_and_save_spectrogram(audio_file, output_folder, frame_size=2048, hop_size=512):
