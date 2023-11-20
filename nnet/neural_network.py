@@ -57,7 +57,6 @@ def gradient_descent(X, Y, alpha, epochs, conv_layer, fc_layer):
             print(f"Epoch {epoch + 1}/{epochs}, Loss: {loss}")
 
 
-
 class Conv2DLayer:
     def __init__(self, input_channels, output_channels, kernel_size, stride, padding):
         self.weights = np.random.randn(output_channels, input_channels, kernel_size, kernel_size) * 0.1
@@ -113,6 +112,13 @@ def visualize_feature_maps(output, num_filters):
 
     # Display the feature maps
     plt.show()
+
+# Function to get the output features from the convolutional layer
+def get_audio_features(conv_layer, X):
+    conv_output = conv_layer.forward(X)
+    # Flatten the output to make it compatible with the second model
+    flattened_output = conv_output.reshape(conv_output.shape[0], -1)
+    return flattened_output
     
 # Load the feature matrix (Shape: 100 samples, 7x7 features each)
 feature_matrix = np.load("K:/Thesis/featureMatrix/4d_matrix.npy")
@@ -133,6 +139,10 @@ fc_output = fc_layer.forward(conv_output.reshape(conv_output.shape[0], -1))
 
 print(f"Convolutional Layer Output Shape: {conv_output.shape}")
 print(f"Fully Connected Layer Output Shape: {fc_output.shape}")
+
+audio_features = get_audio_features(conv_layer, feature_matrix)
+print("Audio Features Shape:", audio_features.shape)
+np.save("K:/Thesis/audio_features/audio_features.npy", audio_features)
 
 learning_rate = 0.01
 epochs = 100  # Adjust as necessary
