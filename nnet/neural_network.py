@@ -86,6 +86,18 @@ class Conv2DLayer:
                 for k in range(self.weights.shape[0]):
                     output[:, k, i, j] = np.sum(X_slice * self.weights[k, :, :, :], axis=(1, 2, 3)) + self.bias[0, k]
         return relu(output)
+    
+    def save_model(self, file_path):
+        # Save model parameters using numpy's save function
+        np.savez(file_path, weights=self.weights, bias=self.bias, stride=self.stride, padding=self.padding)
+
+    def load_model(self, file_path):
+        # Load model parameters using numpy's load function
+        loaded_params = np.load(file_path)
+        self.weights = loaded_params['weights']
+        self.bias = loaded_params['bias']
+        self.stride = loaded_params['stride']
+        self.padding = loaded_params['padding']
 
 class FullyConnectedLayer:
     def __init__(self, input_size, output_size):
@@ -96,6 +108,16 @@ class FullyConnectedLayer:
         X_flattened = X.reshape(X.shape[0], -1)
         output = np.dot(X_flattened, self.weights) + self.bias
         return sigmoid(output)
+    
+    def save_model(self, file_path):
+        # Save model parameters using numpy's save function
+        np.savez(file_path, weights=self.weights, bias=self.bias)
+
+    def load_model(self, file_path):
+        # Load model parameters using numpy's load function
+        loaded_params = np.load(file_path)
+        self.weights = loaded_params['weights']
+        self.bias = loaded_params['bias']
 
 def visualize_feature_maps(output, num_filters):
     # Set up the subplot dimensions
@@ -150,3 +172,6 @@ gradient_descent(feature_matrix, label_matrix, learning_rate, epochs, conv_layer
 
 # Visualization of the feature maps
 visualize_feature_maps(conv_output, num_filters=16)  # Assuming 16 filters in conv_layer
+
+conv_layer.save_model("K:/Thesis/models/conv_model.npz")
+fc_layer.save_model("K:/Thesis/models/fc_model.npz")
