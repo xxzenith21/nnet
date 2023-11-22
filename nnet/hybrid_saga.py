@@ -1,4 +1,7 @@
 import numpy as np
+import os
+import librosa
+from scipy.signal import convolve2d
 
 # Genetic Algorithm (GA) Phase
 
@@ -11,11 +14,17 @@ def apply_crossover(population, crossover_rate):
     num_parents = population.shape[0]
     num_labels = population.shape[1]
 
+    # Ensure an even number of parents for crossover
+    num_parents_for_crossover = max(num_parents - (num_parents % 2), 2)
+
     # Determine the number of crossover pairs
-    num_crossover_pairs = int(num_parents * crossover_rate)
+    num_crossover_pairs = min(int(num_parents_for_crossover * crossover_rate), num_parents_for_crossover // 2)
+
+    # Ensure at least one crossover pair
+    num_crossover_pairs = max(num_crossover_pairs, 1)
 
     # Randomly select pairs of parents for crossover
-    crossover_pairs = np.random.choice(num_parents, size=(num_crossover_pairs, 2), replace=False)
+    crossover_pairs = np.random.choice(num_parents_for_crossover, size=(num_crossover_pairs, 2), replace=False)
 
     for pair in crossover_pairs:
         # Randomly select the crossover point
@@ -27,6 +36,7 @@ def apply_crossover(population, crossover_rate):
         population[pair[1], crossover_point:] = temp
 
     return population
+
 
 # Placeholder: Implement your mutation operator
 def apply_mutation(population, mutation_rate):
@@ -64,8 +74,8 @@ def select_chromosomes_for_sa(population, k):
     # Calculate pairwise Hamming distances
     hamming_distances = np.zeros((num_chromosomes, num_chromosomes))
     for i in range(num_chromosomes):
-        for j in range(i+1, num_chromosomes):
-            hamming_distances[i, j] = hamming(population[i], population[j])
+        for j in range(i + 1, num_chromosomes):
+            hamming_distances[i, j] = np.sum(population[i] != population[j])
             hamming_distances[j, i] = hamming_distances[i, j]
 
     # Find the indices of the top k chromosomes with the smallest distances
@@ -75,6 +85,9 @@ def select_chromosomes_for_sa(population, k):
     selected_chromosomes = population[selected_indices]
 
     return selected_chromosomes
+
+
+
 
 # Step 2: Run GA for m generations
 # Actual GA logic
@@ -113,7 +126,7 @@ def select_chromosomes_for_sa(population, k):
     hamming_distances = np.zeros((num_chromosomes, num_chromosomes))
     for i in range(num_chromosomes):
         for j in range(i+1, num_chromosomes):
-            hamming_distances[i, j] = hamming(population[i], population[j])
+            hamming_distances[i, j] = np.sum(population[i] != population[j])
             hamming_distances[j, i] = hamming_distances[i, j]
 
     # Find the indices of the top k chromosomes with the smallest distances
@@ -168,14 +181,63 @@ def acceptance_probability(energy_diff, temperature):
     return np.random.rand() < np.exp(-energy_diff / temperature)
 
 # Placeholder: Implement your fitness function
-def evaluate_fitness(solution):
-    # Placeholder logic for evaluating fitness of the solution
-    fitness_value = np.sum(solution)  # Replace this with actual fitness evaluation
-    return fitness_value
+def evaluate_fitness(predicted_labels, true_labels):
+    # Assuming predicted_labels and true_labels are binary arrays
+    # You may need to adjust this based on your specific problem
+
+    # Calculate accuracy
+    correct_predictions = np.sum(predicted_labels == true_labels)
+    total_predictions = len(true_labels)
+    accuracy = correct_predictions / total_predictions
+
+    return accuracy
 
 # Main Hybrid SAGA Procedure
 
-def hybrid_algorithm(previous_model, unlabeled_sounds, k1, k2, num_labels, generations, sa_iterations, crossover_rate, mutation_rate, stopping_generations):
+def load_unlabeled_sounds(directory_path):
+    # Specify the path to the directory containing unlabeled sounds
+    # Adjust this based on the actual location of your unlabeled sounds
+    unlabeled_sounds = []
+
+    for filename in os.listdir(directory_path):
+        if filename.endswith(".wav"):
+            file_path = os.path.join(directory_path, filename)
+            sound, _ = librosa.load(file_path, sr=None)  # sr=None to preserve the original sampling rate
+            unlabeled_sounds.append(sound)
+
+    return unlabeled_sounds
+
+# Sigmoid
+def activation_function(result):
+    # Replace this with your actual activation function (e.g., sigmoid, softmax, etc.)
+    return 1 / (1 + np.exp(-result))
+
+def load_models(conv_model_path, fc_model_path):
+    try:
+        conv_model_data = np.load(conv_model_path)
+        fc_model_data = np.load(fc_model_path)
+
+        # Print available keys
+        print("Keys in Conv Model:", conv_model_data.files)
+        print("Keys in FC Model:", fc_model_data.files)
+
+        # Use the correct keys
+        conv_weights = conv_model_data['weights']
+        conv_bias = conv_model_data['bias']
+
+        fc_weights = fc_model_data['weights']
+        fc_bias = fc_model_data['bias']
+
+        return conv_weights, conv_bias, fc_weights, fc_bias
+    except Exception as e:
+        print(f"Error loading models: {e}")
+        # Add appropriate error handling or raise an exception based on your needs
+
+
+def hybrid_saga(conv_model_path, fc_model_path, unlabeled_sounds, k1, k2, num_labels, generations, sa_iterations, crossover_rate, mutation_rate, stopping_generations):
+    # Load Conv2DLayer and FullyConnectedLayer models
+    conv_weights, conv_bias, fc_weights, fc_bias = load_models(conv_model_path, fc_model_path)
+
     # Phase 1: Genetic Algorithm (GA)
     initial_population = initialize_population(k1, num_labels)
     final_population, _ = run_genetic_algorithm(initial_population, generations, crossover_rate, mutation_rate, stopping_generations)
@@ -186,8 +248,8 @@ def hybrid_algorithm(previous_model, unlabeled_sounds, k1, k2, num_labels, gener
     final_labels = []
 
     for i, chromosome in enumerate(selected_chromosomes):
-        # Placeholder: Assuming a function predict_labels exists in the previous model
-        predicted_labels = previous_model.predict_labels(chromosome, unlabeled_sounds[i])
+        # Placeholder: Assuming a function predict_labels exists using both models
+        predicted_labels = predict_labels_using_models(chromosome, unlabeled_sounds[i], conv_weights, conv_bias, fc_weights, fc_bias)
         
         # Apply Simulated Annealing on predicted labels
         optimal_solution = simulated_annealing(predicted_labels, sa_parameters)
@@ -195,9 +257,45 @@ def hybrid_algorithm(previous_model, unlabeled_sounds, k1, k2, num_labels, gener
 
     return final_labels
 
+
+# Modify the predict_labels function to use both models
+def predict_labels_using_models(chromosome, unlabeled_sound, conv_weights, conv_bias, fc_weights, fc_bias):
+    # Ensure unlabeled_sound has the same shape as conv_weights
+    unlabeled_sound = unlabeled_sound.reshape((len(unlabeled_sound), 1))
+
+    # Get the dimensions of the convolutional weights
+    num_channels, _, filter_rows, filter_cols = conv_weights.shape
+
+    # Initialize the convolution result
+    conv_result = np.zeros((num_channels, unlabeled_sound.shape[0] - filter_rows + 1, 1))
+
+    # Perform convolution operation
+    for channel in range(num_channels):
+        for i in range(conv_result.shape[1]):
+            for j in range(conv_result.shape[2]):
+                conv_result[channel, i, j] = np.sum(unlabeled_sound[i:i + filter_rows, j:j + filter_cols] * conv_weights[channel, 0])
+
+    # Sum over channels and add bias
+    conv_result = np.sum(conv_result, axis=0) + conv_bias
+
+    # Perform fully connected operation
+    fc_result = np.dot(chromosome, fc_weights) + fc_bias
+
+    # Combine results as needed for your specific problem
+    combined_result = conv_result + fc_result
+
+    # Apply activation function if needed
+    predicted_labels = activation_function(combined_result)
+
+    return predicted_labels
+
+
+
 # Example usage with specified parameters
-previous_model = YourPreviousModel()  # Instantiate your previous model
-unlabeled_sounds = load_unlabeled_sounds()  # Load your unlabeled sounds
+conv_model_path = "K:/Thesis/models/conv_model.npz"
+fc_model_path = "K:/Thesis/models/fc_model.npz"
+unlabeled_sounds = "K:/Thesis/unlabeled_dataset"  # Replace with the actual path
+unlabeled_sounds = load_unlabeled_sounds(unlabeled_sounds)
 k1 = 50
 k2 = 10
 num_labels = 6  # Adjust based on the number of labels in your problem
@@ -207,4 +305,5 @@ crossover_rate = 0.7
 mutation_rate = 0.01
 stopping_generations = 50
 
-result = hybrid_algorithm(previous_model, unlabeled_sounds, k1, k2, num_labels, generations, sa_iterations, crossover_rate, mutation_rate, stopping_generations)
+result = hybrid_saga(conv_model_path, fc_model_path, unlabeled_sounds, k1, k2, num_labels, generations, sa_iterations, crossover_rate, mutation_rate, stopping_generations)
+print(result)
