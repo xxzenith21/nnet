@@ -181,16 +181,16 @@ def acceptance_probability(energy_diff, temperature):
     return np.random.rand() < np.exp(-energy_diff / temperature)
 
 # Placeholder: Implement your fitness function
-def evaluate_fitness(predicted_labels, true_labels):
-    # Assuming predicted_labels and true_labels are binary arrays
-    # You may need to adjust this based on your specific problem
+def evaluate_fitness(solution):
+    # Example logic: Fitness based on the diversity of labels in the solution
+    # Assuming 'solution' is an array of label indices or some form of label representation
 
-    # Calculate accuracy
-    correct_predictions = np.sum(predicted_labels == true_labels)
-    total_predictions = len(true_labels)
-    accuracy = correct_predictions / total_predictions
+    # Calculate diversity as an example metric. This can be the number of unique labels, 
+    # variance in label distribution, or any other measure that makes sense for your problem.
+    unique_labels = np.unique(solution)
+    diversity_score = len(unique_labels)  # More unique labels result in a higher score
 
-    return accuracy
+    return diversity_score
 
 # Main Hybrid SAGA Procedure
 
@@ -233,11 +233,22 @@ def load_models(conv_model_path, fc_model_path):
         print(f"Error loading models: {e}")
         # Add appropriate error handling or raise an exception based on your needs
 
+def load_label_mapping(mapping_file):
+    label_to_index_mapping = np.load(mapping_file, allow_pickle=True).item()
+    # Invert the mapping to create an index-to-label mapping
+    return {v: k for k, v in label_to_index_mapping.items()}
 
 def hybrid_saga(conv_model_path, fc_model_path, unlabeled_sounds, k1, k2, num_labels, generations, sa_iterations, crossover_rate, mutation_rate, stopping_generations):
+    # Load label mapping
+    index_to_label_mapping = load_label_mapping('K:/Thesis/labelMapping/label_to_index.npy')
+    
     # Load Conv2DLayer and FullyConnectedLayer models
     conv_weights, conv_bias, fc_weights, fc_bias = load_models(conv_model_path, fc_model_path)
 
+    print("Shape of conv_weights:", conv_weights.shape)
+    print("Shape of conv_bias:", conv_bias.shape)
+    print("Shape of fc_weights:", fc_weights.shape)
+    
     # Phase 1: Genetic Algorithm (GA)
     initial_population = initialize_population(k1, num_labels)
     final_population, _ = run_genetic_algorithm(initial_population, generations, crossover_rate, mutation_rate, stopping_generations)
@@ -247,16 +258,35 @@ def hybrid_saga(conv_model_path, fc_model_path, unlabeled_sounds, k1, k2, num_la
     sa_parameters = initialize_sa_parameters()
     final_labels = []
 
-    for i, chromosome in enumerate(selected_chromosomes):
-        # Placeholder: Assuming a function predict_labels exists using both models
+    for i in range(min(len(selected_chromosomes), len(unlabeled_sounds))):
+        chromosome = selected_chromosomes[i]
         predicted_labels = predict_labels_using_models(chromosome, unlabeled_sounds[i], conv_weights, conv_bias, fc_weights, fc_bias)
         
-        # Apply Simulated Annealing on predicted labels
         optimal_solution = simulated_annealing(predicted_labels, sa_parameters)
-        final_labels.append(optimal_solution)
+        final_labels.append([optimal_solution])  # Wrap the optimal solution in a list
 
-    return final_labels
+    # Convert numeric output to pseudo-labels
+    pseudo_labels = [convert_to_labels(label_indices, index_to_label_mapping) for label_indices in final_labels]
 
+    print("Final labels from SA:", final_labels)
+    print("Index to Label Mapping:", index_to_label_mapping)
+    print("Predicted Labels before SA:", predicted_labels)
+
+    optimal_solution = simulated_annealing(predicted_labels, sa_parameters)
+    print("Optimal solution from SA:", optimal_solution)
+    
+    # Return pseudo-labels
+    return pseudo_labels
+
+
+
+def convert_to_labels(indices, mapping):
+    if np.isscalar(indices):
+        # Handle a single value
+        return mapping.get(int(indices), "Unknown Label")
+    else:
+        # Handle an array of indices
+        return [mapping.get(int(index), "Unknown Label") for index in indices]
 
 # Modify the predict_labels function to use both models
 def predict_labels_using_models(chromosome, unlabeled_sound, conv_weights, conv_bias, fc_weights, fc_bias):
@@ -264,30 +294,51 @@ def predict_labels_using_models(chromosome, unlabeled_sound, conv_weights, conv_
     unlabeled_sound = unlabeled_sound.reshape((len(unlabeled_sound), 1))
 
     # Get the dimensions of the convolutional weights
-    num_channels, _, filter_rows, filter_cols = conv_weights.shape
+    num_filters, _, filter_rows, filter_cols = conv_weights.shape
 
     # Initialize the convolution result
-    conv_result = np.zeros((num_channels, unlabeled_sound.shape[0] - filter_rows + 1, 1))
+    conv_result = np.zeros((unlabeled_sound.shape[0] - filter_rows + 1, num_filters))
 
     # Perform convolution operation
-    for channel in range(num_channels):
-        for i in range(conv_result.shape[1]):
-            for j in range(conv_result.shape[2]):
-                conv_result[channel, i, j] = np.sum(unlabeled_sound[i:i + filter_rows, j:j + filter_cols] * conv_weights[channel, 0])
+    for i in range(conv_result.shape[0]):
+        for filter_index in range(num_filters):
+            conv_result[i, filter_index] = np.sum(unlabeled_sound[i:i + filter_rows, 0] * conv_weights[filter_index, 0])
 
-    # Sum over channels and add bias
-    conv_result = np.sum(conv_result, axis=0) + conv_bias
+    # Add bias to each filter's result
+    conv_bias_reshaped = conv_bias.flatten()
+    for filter_index in range(num_filters):
+        conv_result[:, filter_index] += conv_bias_reshaped[filter_index]
 
-    # Perform fully connected operation
-    fc_result = np.dot(chromosome, fc_weights) + fc_bias
+    # Sum over filters
+    conv_result_summed = np.sum(conv_result, axis=1)
 
-    # Combine results as needed for your specific problem
-    combined_result = conv_result + fc_result
+    # Expand chromosome to match the input size of fc_weights
+    target_size = fc_weights.shape[0]  # Get the target size from fc_weights
+    expanded_chromosome = np.zeros(target_size)
+    expanded_chromosome[:len(chromosome)] = chromosome
+    chromosome_row_vector = expanded_chromosome.reshape(1, -1)
+
+    # Perform the dot product with expanded chromosome
+    fc_result = np.dot(chromosome_row_vector, fc_weights) + fc_bias
+
+    # Reshape conv_result_summed for concatenation and concatenate with fc_result
+    conv_result_summed_reshaped = conv_result_summed.reshape(1, -1)
+    combined_result = np.concatenate((conv_result_summed_reshaped, fc_result), axis=1)
 
     # Apply activation function if needed
     predicted_labels = activation_function(combined_result)
 
-    return predicted_labels
+    # Apply activation function
+    predicted_labels_continuous = activation_function(combined_result)
+
+    # Convert continuous outputs to discrete label indices
+    predicted_labels_indices = np.argmax(predicted_labels_continuous, axis=1)
+
+    return predicted_labels_indices
+
+
+
+
 
 
 
@@ -301,9 +352,10 @@ k2 = 10
 num_labels = 6  # Adjust based on the number of labels in your problem
 generations = 100
 sa_iterations = 50
-crossover_rate = 0.7
-mutation_rate = 0.01
+crossover_rate = 0.8
+mutation_rate = 0.05
 stopping_generations = 50
 
 result = hybrid_saga(conv_model_path, fc_model_path, unlabeled_sounds, k1, k2, num_labels, generations, sa_iterations, crossover_rate, mutation_rate, stopping_generations)
 print(result)
+
