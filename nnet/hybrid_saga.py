@@ -6,8 +6,8 @@ from scipy.signal import convolve2d
 # Genetic Algorithm (GA) Phase
 
 # Step 1: Generate the initial k1 populations and initialize GA parameters
-def initialize_population(k1, num_labels):
-    return np.random.randint(2, size=(k1, num_labels))
+def initialize_population(k1, num_labels, low, high):
+    return np.random.uniform(low, high, size=(k1, num_labels))
 
 # Placeholder: Implement your crossover operator
 def apply_crossover(population, crossover_rate):
@@ -60,63 +60,66 @@ def apply_mutation(population, mutation_rate):
     return mutated_population
 
 # Placeholder: Implement your fitness function
-def evaluate_population_fitness(population):
-    # Placeholder logic for evaluating fitness of each individual in the population
-    # In this example, fitness is the sum of components in each chromosome
-    fitness_values = np.sum(population, axis=1)
+def fitness_function(chromosome):
+    # Modify this function according to your problem
+    return -np.sum(chromosome**2)  # Example: minimize the sum of squares
 
-    return fitness_values
+def roulette_wheel_selection(population, fitness_values):
+    # Handling the case where all fitness values are zero or negative
+    total_fitness = np.sum(fitness_values)
+    if total_fitness <= 0:
+        total_fitness = len(fitness_values)
 
-# Step 3: Choose k good chromosomes for SA
-def select_chromosomes_for_sa(population, k):
-    num_chromosomes = population.shape[0]
+    # Normalizing selection probabilities
+    selection_probabilities = fitness_values / total_fitness
 
-    # Calculate pairwise Hamming distances
-    hamming_distances = np.zeros((num_chromosomes, num_chromosomes))
-    for i in range(num_chromosomes):
-        for j in range(i + 1, num_chromosomes):
-            hamming_distances[i, j] = np.sum(population[i] != population[j])
-            hamming_distances[j, i] = hamming_distances[i, j]
+    # Ensuring probabilities sum to 1
+    selection_probabilities = selection_probabilities / np.sum(selection_probabilities)
 
-    # Find the indices of the top k chromosomes with the smallest distances
-    selected_indices = np.argsort(np.sum(hamming_distances, axis=0))[:k]
+    # Selecting indices based on the roulette wheel approach
+    selected_indices = np.random.choice(len(population), size=2, p=selection_probabilities)
 
-    # Select the corresponding chromosomes
-    selected_chromosomes = population[selected_indices]
+    # Using a list comprehension to select the individuals from the population
+    selected_individuals = [population[idx] for idx in selected_indices]
+    return selected_individuals
 
-    return selected_chromosomes
+def crossover(parents):
+    # Arithmetic crossover example
+    alpha = np.random.rand()
+    child1 = alpha * parents[0] + (1 - alpha) * parents[1]
+    child2 = alpha * parents[1] + (1 - alpha) * parents[0]
+    return child1, child2
 
+# Placeholder: Step 5: Mutation
+def mutate(chromosome, mutation_rate=0.1):
+    # Gaussian mutation
+    if np.random.rand() < mutation_rate:
+        mutation_value = np.random.normal()
+        gene_index = np.random.randint(len(chromosome))
+        chromosome[gene_index] += mutation_value
+    return chromosome
 
-
-
-# Step 2: Run GA for m generations
-# Actual GA logic
-def run_genetic_algorithm(population, generations, crossover_rate, mutation_rate, stopping_generations):
-    best_fitness = -1  # Placeholder for the best fitness value
-    no_improvement_count = 0
+# Main GA Procedure
+def run_genetic_algorithm(generations, population_size, num_genes):
+    population = initialize_population(population_size, num_genes)
+    best_fitness = float('inf')  # Assuming minimization
 
     for generation in range(generations):
-        # Apply GA operators to evolve the population
-        population = apply_crossover(population, crossover_rate)
-        population = apply_mutation(population, mutation_rate)
+        new_population = []
+        fitness_values = np.array([fitness_function(individual) for individual in population])
 
-        # Evaluate fitness
-        fitness_values = evaluate_population_fitness(population)
+        # Create new population
+        for _ in range(population_size // 2):
+            parents = roulette_wheel_selection(population, fitness_values)
+            offspring = crossover(parents)
+            new_population.extend([mutate(child) for child in offspring])
+        
+        population = new_population
+    
+    # Calculate final fitness values
+    final_fitness_values = np.array([fitness_function(individual) for individual in population])
 
-        # Update best_fitness based on the maximum fitness value
-        current_best_fitness = np.max(fitness_values)
-        if current_best_fitness > best_fitness:
-            best_fitness = current_best_fitness
-            no_improvement_count = 0
-        else:
-            no_improvement_count += 1
-
-        # Check stopping criterion
-        if no_improvement_count >= stopping_generations:
-            break
-
-    # Return the final population and its fitness values
-    return population, fitness_values
+    return population, final_fitness_values
 
 # Step 3: Choose k good chromosomes for SA
 def select_chromosomes_for_sa(population, k):
@@ -146,10 +149,9 @@ def initialize_sa_parameters():
     cooling_rate = 0.95
     return temperature, cooling_rate
 
-# Step 5: Apply SA algorithm
 def simulated_annealing(chromosomes, sa_parameters):
     temperature, cooling_rate = sa_parameters
-    current_solution = chromosomes[0]  # Start with the first chromosome
+    current_solution = np.array(chromosomes[0])  # Convert to NumPy array
 
     while temperature > 0.1:  # Adjust stopping criterion as needed
         # Generate neighbor solution by perturbation
@@ -337,11 +339,6 @@ def predict_labels_using_models(chromosome, unlabeled_sound, conv_weights, conv_
     return predicted_labels_indices
 
 
-
-
-
-
-
 # Example usage with specified parameters
 conv_model_path = "K:/Thesis/models/conv_model.npz"
 fc_model_path = "K:/Thesis/models/fc_model.npz"
@@ -356,6 +353,32 @@ crossover_rate = 0.8
 mutation_rate = 0.05
 stopping_generations = 50
 
-result = hybrid_saga(conv_model_path, fc_model_path, unlabeled_sounds, k1, k2, num_labels, generations, sa_iterations, crossover_rate, mutation_rate, stopping_generations)
-print(result)
+population_size = 100
+num_genes = 10
+generations = 50
+
+low = -5  # Adjust as needed for your problem
+high = 5
+
+# Run Genetic Algorithm
+population, fitness_values = run_genetic_algorithm(generations, population_size, num_genes)
+best_chromosome_index = np.argmin(fitness_values)
+best_chromosome = population[best_chromosome_index]
+
+# Initialize SA parameters
+sa_parameters = initialize_sa_parameters()
+
+# Apply Simulated Annealing on the best solution from GA
+final_solution = simulated_annealing([best_chromosome], sa_parameters)
+print("Best solution from GA:", best_chromosome)
+print("Final solution after SA:", final_solution)
+
+# num_labels = 10  # length of each chromosome
+# low, high = -5, 5  # range for real values
+# initial_population = initialize_population(k1, num_labels, low, high)
+# print("Initial Population:", initial_population)
+
+
+# result = hybrid_saga(conv_model_path, fc_model_path, unlabeled_sounds, k1, k2, num_labels, generations, sa_iterations, crossover_rate, mutation_rate, stopping_generations)
+# print(result)
 
