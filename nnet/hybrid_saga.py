@@ -6,8 +6,12 @@ from scipy.signal import convolve2d
 # Genetic Algorithm (GA) Phase
 
 # Step 1: Generate the initial k1 populations and initialize GA parameters
-def initialize_population(k1, num_labels, low, high):
-    return np.random.uniform(low, high, size=(k1, num_labels))
+def initialize_population(k1, num_labels):
+    # Generate initial populations with integer values
+    # corresponding to label indices
+    min_label_index = 0  # assuming label indices start from 0
+    max_label_index = 95  # maximum label index based on your label mapping
+    return np.random.randint(min_label_index, max_label_index + 1, size=(k1, num_labels))
 
 # Placeholder: Implement your crossover operator
 def apply_crossover(population, crossover_rate):
@@ -253,24 +257,25 @@ def hybrid_saga(conv_model_path, fc_model_path, unlabeled_sounds, k1, k2, num_la
     
     # Phase 1: Genetic Algorithm (GA)
     initial_population = initialize_population(k1, num_labels)
-    final_population, _ = run_genetic_algorithm(initial_population, generations, crossover_rate, mutation_rate, stopping_generations)
-    selected_chromosomes = select_chromosomes_for_sa(final_population, k2)
+    final_population, fitness_values = run_genetic_algorithm(initial_population, generations, crossover_rate, mutation_rate, stopping_generations)
+    best_chromosome = final_population[np.argmin(fitness_values)]
 
     # Phase 2: Simulated Annealing (SA)
     sa_parameters = initialize_sa_parameters()
-    final_labels = []
+    final_solution = simulated_annealing([best_chromosome], sa_parameters)
 
-    for i in range(min(len(selected_chromosomes), len(unlabeled_sounds))):
-        chromosome = selected_chromosomes[i]
+
+    for i in range(min(len(best_chromosome), len(unlabeled_sounds))):
+        chromosome = best_chromosome[i]
         predicted_labels = predict_labels_using_models(chromosome, unlabeled_sounds[i], conv_weights, conv_bias, fc_weights, fc_bias)
         
         optimal_solution = simulated_annealing(predicted_labels, sa_parameters)
-        final_labels.append([optimal_solution])  # Wrap the optimal solution in a list
+        final_solution.append([optimal_solution])  # Wrap the optimal solution in a list
 
     # Convert numeric output to pseudo-labels
-    pseudo_labels = [convert_to_labels(label_indices, index_to_label_mapping) for label_indices in final_labels]
+    # pseudo_labels = [convert_to_labels(label_indices, index_to_label_mapping) for label_indices in final_labels]
 
-    print("Final labels from SA:", final_labels)
+    print("Final labels from SA:", final_solution)
     print("Index to Label Mapping:", index_to_label_mapping)
     print("Predicted Labels before SA:", predicted_labels)
 
@@ -278,17 +283,15 @@ def hybrid_saga(conv_model_path, fc_model_path, unlabeled_sounds, k1, k2, num_la
     print("Optimal solution from SA:", optimal_solution)
     
     # Return pseudo-labels
-    return pseudo_labels
+    return final_solution
 
-
-
-def convert_to_labels(indices, mapping):
-    if np.isscalar(indices):
-        # Handle a single value
-        return mapping.get(int(indices), "Unknown Label")
-    else:
-        # Handle an array of indices
-        return [mapping.get(int(index), "Unknown Label") for index in indices]
+# def convert_to_labels(indices, mapping):
+#     if np.isscalar(indices):
+#         # Handle a single value
+#         return mapping.get(int(indices), "Unknown Label")
+#     else:
+#         # Handle an array of indices
+#         return [mapping.get(int(index), "Unknown Label") for index in indices]
 
 # Modify the predict_labels function to use both models
 def predict_labels_using_models(chromosome, unlabeled_sound, conv_weights, conv_bias, fc_weights, fc_bias):
@@ -338,15 +341,39 @@ def predict_labels_using_models(chromosome, unlabeled_sound, conv_weights, conv_
 
     return predicted_labels_indices
 
+def load_label_mapping(mapping_file):
+    label_mapping = np.load(mapping_file, allow_pickle=True).item()
+    return label_mapping
+
+def convert_indices_to_labels(indices, mapping):
+    return [mapping.get(index, "Unknown Label") for index in indices]
+
+# Assuming 'final_solution' is the output from your Simulated Annealing algorithm
+def process_final_solution(final_solution, mapping):
+    return convert_indices_to_labels(final_solution, mapping)
+
+def normalize_and_discretize(solution, min_val, max_val, total_labels_count):
+    # Normalize values to a 0-1 range
+    normalized = (solution - min_val) / (max_val - min_val)
+
+    # Scale to label index range and convert to integers
+    discretized = (normalized * (total_labels_count - 1)).astype(int)
+
+    return discretized
+
+
+mapping_file = 'K:/Thesis/labelMapping/label_to_index.npy'  
+index_to_label_mapping = load_label_mapping(mapping_file)
 
 # Example usage with specified parameters
 conv_model_path = "K:/Thesis/models/conv_model.npz"
 fc_model_path = "K:/Thesis/models/fc_model.npz"
-unlabeled_sounds = "K:/Thesis/unlabeled_dataset"  # Replace with the actual path
-unlabeled_sounds = load_unlabeled_sounds(unlabeled_sounds)
+unlabeled_sounds = "K:/Thesis/unlabeled_dataset"
+# unlabeled_sounds = load_unlabeled_sounds(unlabeled_sounds)
+
 k1 = 50
 k2 = 10
-num_labels = 6  # Adjust based on the number of labels in your problem
+
 generations = 100
 sa_iterations = 50
 crossover_rate = 0.8
@@ -357,28 +384,47 @@ population_size = 100
 num_genes = 10
 generations = 50
 
-low = -5  # Adjust as needed for your problem
+low = -5 
 high = 5
 
-# Run Genetic Algorithm
-population, fitness_values = run_genetic_algorithm(generations, population_size, num_genes)
-best_chromosome_index = np.argmin(fitness_values)
-best_chromosome = population[best_chromosome_index]
+# Get a list of all sound files in the folder
+sound_files = [file for file in os.listdir(unlabeled_sounds) if file.endswith(".wav")]
 
-# Initialize SA parameters
-sa_parameters = initialize_sa_parameters()
+# Initialize an empty list to store pseudo labels for all sound files
+all_pseudo_labels = []
 
-# Apply Simulated Annealing on the best solution from GA
-final_solution = simulated_annealing([best_chromosome], sa_parameters)
-print("Best solution from GA:", best_chromosome)
-print("Final solution after SA:", final_solution)
+# Iterate over each sound file
+for sound_file in sound_files:
+    # Load the audio data from the file (you may need to adjust this based on your actual audio loading code)
+    sound, _ = librosa.load(os.path.join(unlabeled_sounds, sound_file), sr=None)
 
-# num_labels = 10  # length of each chromosome
-# low, high = -5, 5  # range for real values
-# initial_population = initialize_population(k1, num_labels, low, high)
-# print("Initial Population:", initial_population)
+    # Run Genetic Algorithm
+    population, fitness_values = run_genetic_algorithm(generations, population_size, num_genes)
+    best_chromosome_index = np.argmin(fitness_values)
+    best_chromosome = population[best_chromosome_index]
 
+    # Initialize SA parameters
+    sa_parameters = initialize_sa_parameters()
 
-# result = hybrid_saga(conv_model_path, fc_model_path, unlabeled_sounds, k1, k2, num_labels, generations, sa_iterations, crossover_rate, mutation_rate, stopping_generations)
-# print(result)
+    # Apply Simulated Annealing on the best solution from GA
+    final_solution = simulated_annealing([best_chromosome], sa_parameters)
+    # print("Best solution from GA:", best_chromosome)
+    # print("Final solution after SA:", final_solution)
+
+    min_val = np.min(final_solution)
+    max_val = np.max(final_solution)
+    total_labels_count = len(index_to_label_mapping)
+
+    # Normalize and discretize the final solution
+    discrete_solution = normalize_and_discretize(final_solution, min_val, max_val, total_labels_count)
+
+    # Convert discrete indices to labels
+    textual_labels = [index_to_label_mapping.get(index, "Unknown Label") for index in discrete_solution]
+
+    for number in discrete_solution:
+        predicted_labels = [next((label for label, index in index_to_label_mapping.items() if index == number), "Unknown Label") for number in discrete_solution]
+
+    print("File Name:", sound_file)
+    print("Pseudo Labels:", predicted_labels)
+
 
