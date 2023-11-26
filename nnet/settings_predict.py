@@ -1,4 +1,8 @@
 import numpy as np
+from sklearn.metrics import accuracy_score, precision_score
+from sklearn.model_selection import train_test_split
+# import settings_labels
+# import settings_convert
 
 # Neural Network Functions
 def sigmoid(x):
@@ -67,9 +71,6 @@ epochs = 100
 
 # Train the Network using the audio features and label matrix
 gradient_descent(audio_features, label_matrix, learning_rate, epochs, fc_layer)
-
-
-
 
 
 # Function to convert neural network output to synthesizer settings
@@ -194,7 +195,13 @@ def adjust_settings_based_on_input(user_description, settings):
 
     return settings
 
-user_description = "smooth, acoustic, reverb, sad, horn"
+# user_description = "smooth, acoustic, reverb, sad, horn"
+
+def get_user_input():
+    user_input = input("Enter a description of the sound you want to generate: ")
+    return user_input
+
+user_description = get_user_input()
 
 def predict_synthesizer_settings(user_description):
     processed_input = process_user_input(user_description)
@@ -217,3 +224,88 @@ def predict_synthesizer_settings(user_description):
 
 # Example execution with the preset description
 predict_synthesizer_settings(user_description)
+
+
+
+
+
+
+# Split your data into training, validation, and testing sets
+feature_matrix_train, feature_matrix_temp, label_matrix_train, label_matrix_temp = train_test_split(feature_matrix, label_matrix, test_size=0.2, random_state=42)
+
+feature_matrix_val, feature_matrix_test, label_matrix_val, label_matrix_test = train_test_split(feature_matrix_temp, label_matrix_temp, test_size=0.5, random_state=42)
+
+# Determine the number of features in your input data
+input_size = feature_matrix_val.shape[1] * feature_matrix_val.shape[2]
+
+# Update the initialization of your FullyConnectedLayer
+fc_layer = FullyConnectedLayer(input_size=input_size, output_size=output_size)
+
+
+# Validation
+fc_output_val = fc_layer.forward(feature_matrix_val.reshape(feature_matrix_val.shape[0], -1))
+
+# Calculate validation loss
+validation_loss = binary_crossentropy(label_matrix_val, fc_output_val)
+print(f"Validation Loss: {validation_loss}")
+
+# Testing
+fc_output_test = fc_layer.forward(feature_matrix_test.reshape(feature_matrix_test.shape[0], -1))
+
+# Calculate testing loss
+test_loss = binary_crossentropy(label_matrix_test, fc_output_test)
+print(f"Testing Loss: {test_loss}")
+
+
+
+
+
+# Validation predictions and true labels
+validation_predictions = (fc_output_val > 0.5).astype(int)  # Adjust the threshold if needed
+validation_true_labels = label_matrix_val  # Assuming label_matrix_val contains true labels
+
+# Testing predictions and true labels
+testing_predictions = (fc_output_test > 0.5).astype(int)  # Adjust the threshold if needed
+testing_true_labels = label_matrix_test  # Assuming label_matrix_test contains true labels
+
+# Calculate accuracy for validation
+validation_accuracy = accuracy_score(validation_true_labels, validation_predictions)
+
+# Calculate precision for validation
+validation_precision = precision_score(validation_true_labels, validation_predictions, average='micro')
+
+# Calculate accuracy for testing
+testing_accuracy = accuracy_score(testing_true_labels, testing_predictions)
+
+# Calculate precision for testing
+testing_precision = precision_score(testing_true_labels, testing_predictions, average='micro')
+
+print("Shape of validation_true_labels:", validation_true_labels.shape)
+print("Shape of validation_predictions:", validation_predictions.shape)
+print("Sample of validation_true_labels:", validation_true_labels[:5])
+print("Sample of validation_predictions:", validation_predictions[:5])
+
+
+
+# Assuming you have binary label matrices (multilabel format)
+binary_label_matrix_val = label_matrix_val  # Ensure it's already binary
+binary_label_matrix_test = label_matrix_test  # Ensure it's already binary
+
+# Calculate multilabel accuracy for validation
+multilabel_validation_accuracy = accuracy_score(binary_label_matrix_val, validation_predictions)
+
+# Calculate multilabel precision for validation
+multilabel_validation_precision = precision_score(binary_label_matrix_val, validation_predictions, average='micro')
+
+# Calculate multilabel accuracy for testing
+multilabel_testing_accuracy = accuracy_score(binary_label_matrix_test, testing_predictions)
+
+# Calculate multilabel precision for testing
+multilabel_testing_precision = precision_score(binary_label_matrix_test, testing_predictions, average='micro')
+
+# Display the metrics
+print("Multilabel Validation Accuracy:", multilabel_validation_accuracy)
+print("Multilabel Validation Precision:", multilabel_validation_precision)
+
+print("Multilabel Testing Accuracy:", multilabel_testing_accuracy)
+print("Multilabel Testing Precision:", multilabel_testing_precision)

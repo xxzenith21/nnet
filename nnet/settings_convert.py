@@ -1,5 +1,6 @@
 import numpy as np
 from sklearn.decomposition import PCA
+import settings_features
 
 # Load the feature matrix
 feature_matrix = np.load("K:/Thesis/synth_settings/settings_features_matrix/settings_feature_matrix.npy")
@@ -19,6 +20,4 @@ reshaped_feature_matrix = np.reshape(reduced_feature_matrix, (reduced_feature_ma
 reshaped_save_path = "K:/Thesis/synth_settings/settings_features_matrix/settings_4d_matrix.npy"
 np.save(reshaped_save_path, reshaped_feature_matrix)
 
-print(f"Shape of Reshaped Feature Matrix: {reshaped_feature_matrix.shape} \n\n")
-
-# Shape of Reshaped Feature Matrix: (100, 7, 7)
+# print(f"Shape of Reshaped Feature Matrix: {reshaped_feature_matrix.shape} \n\n")

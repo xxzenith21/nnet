@@ -98,9 +98,9 @@ label_matrix, label_to_index = load_and_process_labels(
 np.save(label_matrix_file, label_matrix)
 np.save(label_mapping_file, label_to_index)
 
-# Print shapes to verify
-print(f"Shape of Label Matrix: {label_matrix.shape}")
-print("Label-to-Index Mapping:", label_to_index)
+# # Print shapes to verify
+# print(f"Shape of Label Matrix: {label_matrix.shape}")
+# print("Label-to-Index Mapping:", label_to_index)
 
 
 

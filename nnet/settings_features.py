@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 input_folder = "K:/Thesis/synth_settings/synth_settings_dataset"
 spectro_folder = "K:/Thesis/synth_settings/settings_spectro"
 features_folder = "K:/Thesis/synth_settings/settings_features"
-matrix_folder = "K:/Thesis/synth_settings/settings_matrix"
+matrix_folder = "K:/Thesis/synth_settings/settings_features_matrix"
 FRAME_SIZE = 2048
 HOP_SIZE = 512
 
@@ -123,10 +123,10 @@ for filename in os.listdir(spectro_folder):
 feature_matrix = np.array(feature_vectors)
 
 # Save the feature matrix
-save_path = "K:/Thesis/synth_settings/settings_matrix/settings_feature_matrix.npy"
+save_path = "K:/Thesis/synth_settings/settings_features_matrix/settings_feature_matrix.npy"
 np.save(save_path, feature_matrix)
 
-feature_matrix = np.load("K:/Thesis/synth_settings/settings_matrix/settings_feature_matrix.npy")
-print("Shape of the Feature Matrix:", feature_matrix.shape)
-print("Features extracted and saved successfully.\n\n")
+# feature_matrix = np.load("K:/Thesis/synth_settings/settings_feature_matrix/settings_feature_matrix.npy")
+# print("Shape of the Feature Matrix:", feature_matrix.shape)
+# print("Features extracted and saved successfully.\n\n")
 

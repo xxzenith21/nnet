@@ -1,6 +1,7 @@
 import numpy as np
 import os
 import librosa
+import shutil
 from scipy.signal import convolve2d
 
 # Genetic Algorithm (GA) Phase
@@ -361,7 +362,6 @@ def normalize_and_discretize(solution, min_val, max_val, total_labels_count):
 
     return discretized
 
-
 mapping_file = 'K:/Thesis/labelMapping/label_to_index.npy'  
 index_to_label_mapping = load_label_mapping(mapping_file)
 
@@ -370,6 +370,8 @@ conv_model_path = "K:/Thesis/models/conv_model.npz"
 fc_model_path = "K:/Thesis/models/fc_model.npz"
 unlabeled_sounds = "K:/Thesis/unlabeled_dataset"
 # unlabeled_sounds = load_unlabeled_sounds(unlabeled_sounds)
+
+saga_dataset = "K:/Thesis/saga_unlabeled_dataset"
 
 k1 = 50
 k2 = 10
@@ -392,6 +394,20 @@ sound_files = [file for file in os.listdir(unlabeled_sounds) if file.endswith(".
 
 # Initialize an empty list to store pseudo labels for all sound files
 all_pseudo_labels = []
+
+# Function to clear the contents of a folder
+def clear_folder(folder_path):
+    for filename in os.listdir(folder_path):
+        file_path = os.path.join(folder_path, filename)
+        try:
+            if os.path.isfile(file_path) or os.path.islink(file_path):
+                os.unlink(file_path)
+            elif os.path.isdir(file_path):
+                shutil.rmtree(file_path)
+        except Exception as e:
+            print(f"Failed to delete {file_path}. Reason: {e}")
+
+clear_folder(saga_dataset)
 
 # Iterate over each sound file
 for sound_file in sound_files:
@@ -427,4 +443,25 @@ for sound_file in sound_files:
     print("File Name:", sound_file)
     print("Pseudo Labels:", predicted_labels)
 
+    # Remove the "ARTURIA_sample_" prefix and clean labels
+    # Clean each label individually
+    cleaned_labels = [label.strip("[]'") for label in predicted_labels]
+    
+    # Create new file name
+    new_file_name = f"{os.path.splitext(sound_file)[0]}. {', '.join(cleaned_labels)}.wav"
 
+    # Copy and rename the file to the new folder
+    shutil.copy(os.path.join(unlabeled_sounds, sound_file), os.path.join(saga_dataset, new_file_name))
+
+    # Specify the part you want to remove from the filenames
+    part_to_remove = "ARTURIA_sample_"
+
+    # Iterate over all files in the folder
+    for filename in os.listdir(saga_dataset):
+        if os.path.isfile(os.path.join(saga_dataset, filename)):
+            # Check if the file is a regular file (not a directory)
+            new_filename = filename.replace(part_to_remove, "")
+        
+           # Rename the file with the part removed
+            os.rename(os.path.join(saga_dataset, filename), os.path.join(saga_dataset, new_filename))
+            # print(f"Renamed: {filename} -> {new_filename}")
