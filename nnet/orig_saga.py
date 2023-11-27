@@ -1,21 +1,17 @@
 import numpy as np
 import os
 import librosa
-import shutil
-import hashlib
 from scipy.signal import convolve2d
 
 # Genetic Algorithm (GA) Phase
 
 # Step 1: Generate the initial k1 populations and initialize GA parameters
-def initialize_population(k1, num_labels_list):
-    population = []
-    for num_labels in num_labels_list:
-        min_label_index = 0
-        max_label_index = 95
-        individual = np.random.randint(min_label_index, max_label_index + 1, size=num_labels)
-        population.append(individual)
-    return population
+def initialize_population(k1, num_labels):
+    # Generate initial populations with integer values
+    # corresponding to label indices
+    min_label_index = 0  # assuming label indices start from 0
+    max_label_index = 95  # maximum label index based on your label mapping
+    return np.random.randint(min_label_index, max_label_index + 1, size=(k1, num_labels))
 
 # Placeholder: Implement your crossover operator
 def apply_crossover(population, crossover_rate):
@@ -108,9 +104,9 @@ def mutate(chromosome, mutation_rate=0.1):
     return chromosome
 
 # Main GA Procedure
-def run_genetic_algorithm(generations, population_size, population, crossover_rate, mutation_rate, stopping_generations):
-    population = initialize_population(population_size, [num_genes])
-    best_fitness = float('inf')
+def run_genetic_algorithm(generations, population_size, num_genes):
+    population = initialize_population(population_size, num_genes)
+    best_fitness = float('inf')  # Assuming minimization
 
     for generation in range(generations):
         new_population = []
@@ -365,25 +361,6 @@ def normalize_and_discretize(solution, min_val, max_val, total_labels_count):
 
     return discretized
 
-def analyze_sound_file(sound, sr=22050):
-    # Extract MFCCs from the sound
-    mfccs = librosa.feature.mfcc(y=sound, sr=sr, n_mfcc=13)
-
-    # Calculate the mean of the first MFCC (as a simple feature)
-    mean_mfcc = np.mean(mfccs[0, :])
-
-    # Heuristic: Map the mean MFCC to a label count
-    # This is a very basic example. You should develop a more sophisticated method.
-    if mean_mfcc < -250:
-        num_labels = 5
-    elif -250 <= mean_mfcc < -150:
-        num_labels = 8
-    elif -150 <= mean_mfcc < -50:
-        num_labels = 10
-    else:
-        num_labels = 12
-
-    return num_labels 
 
 mapping_file = 'K:/Thesis/labelMapping/label_to_index.npy'  
 index_to_label_mapping = load_label_mapping(mapping_file)
@@ -418,20 +395,6 @@ sound_files = [file for file in os.listdir(unlabeled_sounds) if file.endswith(".
 # Initialize an empty list to store pseudo labels for all sound files
 all_pseudo_labels = []
 
-# Function to clear the contents of a folder
-def clear_folder(folder_path):
-    for filename in os.listdir(folder_path):
-        file_path = os.path.join(folder_path, filename)
-        try:
-            if os.path.isfile(file_path) or os.path.islink(file_path):
-                os.unlink(file_path)
-            elif os.path.isdir(file_path):
-                shutil.rmtree(file_path)
-        except Exception as e:
-            print(f"Failed to delete {file_path}. Reason: {e}")
-
-clear_folder(saga_dataset)
-
 def extract_labels_from_filename(filename):
     # Check if the filename contains the pattern '. ' to split on
     if '. ' in filename:
@@ -444,23 +407,17 @@ def extract_labels_from_filename(filename):
 # Example usage
 ground_truth_labels_dict = {}
 for sound_file in sound_files:
-    file_number = sound_file.split('.')[0]  # Extracting file number
-    original_filename = sound_file.replace('.wav', '')
-    ground_truth_labels_dict[file_number] = original_filename  # Storing the original filename
+    labels = extract_labels_from_filename(sound_file)
+    file_number = sound_file.split('.')[0]  # Assuming file number is before the first dot
+    ground_truth_labels_dict[file_number] = labels
 
 # Iterate over each sound file
 for sound_file in sound_files:
     # Load the audio data from the file (you may need to adjust this based on your actual audio loading code)
     sound, _ = librosa.load(os.path.join(unlabeled_sounds, sound_file), sr=None)
 
-    # Analyze the sound file to determine the number of labels
-    num_labels = analyze_sound_file(sound)
-
-    population_size = 100  # Example population size
-    population = initialize_population(population_size, [num_labels] * population_size)
-    final_population, fitness_values = run_genetic_algorithm(generations, population_size, population, crossover_rate, mutation_rate, stopping_generations)
     # Run Genetic Algorithm
-    # population, fitness_values = run_genetic_algorithm(generations, population_size, num_genes)
+    population, fitness_values = run_genetic_algorithm(generations, population_size, num_genes)
     best_chromosome_index = np.argmin(fitness_values)
     best_chromosome = population[best_chromosome_index]
 
@@ -485,75 +442,22 @@ for sound_file in sound_files:
     for number in discrete_solution:
         predicted_labels = [next((label for label, index in index_to_label_mapping.items() if index == number), "Unknown Label") for number in discrete_solution]
 
-    # print("File Name:", sound_file)
-    # print("Pseudo Labels:", predicted_labels)
-
-    # Remove the "ARTURIA_sample_" prefix and clean labels
-    # Clean each label individually
-    cleaned_labels = [label.strip("[]'") for label in predicted_labels]
-    file_number, _, labels = sound_file.partition(". ")
-    
-    # Create new file name
-    # new_file_name = f"{os.path.splitext(sound_file)[0]}. {', '.join(cleaned_labels)}.wav"
-    new_file_name = f"{file_number}. {', '.join(cleaned_labels)}.wav"
-
-    # # Copy and rename the file to the new folder
-    shutil.copy(os.path.join(unlabeled_sounds, sound_file), os.path.join(saga_dataset, new_file_name))
-
-    # # Specify the part you want to remove from the filenames
-    # part_to_remove = "ARTURIA_sample_"
-
-    # # Iterate over all files in the folder
-    # for filename in os.listdir(saga_dataset):
-    #     if os.path.isfile(os.path.join(saga_dataset, filename)):
-    #         # Check if the file is a regular file (not a directory)
-    #         new_filename = filename.replace(part_to_remove, "")
-        
-    #        # Rename the file with the part removed
-    #         os.rename(os.path.join(saga_dataset, filename), os.path.join(saga_dataset, new_filename))
-    #         # print(f"Renamed: {filename} -> {new_filename}")
+    #print("File Name:", sound_file)
+    #print("Pseudo Labels:", predicted_labels)
 
 pseudo_labels_dict = {}
 for filename in os.listdir(saga_dataset):
     if filename.endswith('.wav'):
         file_number = filename.split('.')[0]
-        original_filename = os.path.splitext(filename)[0]  # Remove the ".wav" extension
         labels = extract_labels_from_filename(filename)
         pseudo_labels_dict[file_number] = labels
 
 def calculate_accuracy_precision(ground_truth_dict, pseudo_labels_dict):
-    # Initialize counts
-    total_files = len(ground_truth_dict)
-    correct_predictions = 0
-    total_predictions = 0
-    total_relevant_labels = 0
-
-    for file_number, ground_truth_labels in ground_truth_dict.items():
-        pseudo_labels = pseudo_labels_dict.get(file_number, [])  # Ensure pseudo_labels is a list
-
-        # Calculate accuracy
-        correct_labels = set(ground_truth_labels).intersection(pseudo_labels)
-        correct_predictions += len(correct_labels)
-        total_relevant_labels += len(ground_truth_labels)
-
-        # Calculate precision
-        if len(pseudo_labels) > 0:
-            precision = len(correct_labels) / len(pseudo_labels)
-            total_predictions += 1  # Increment by 1 for each file with predictions
-
-    # Handling division by zero
-    accuracy = correct_predictions / total_relevant_labels if total_relevant_labels > 0 else 0
-    average_precision = correct_predictions / total_predictions if total_predictions > 0 else 0
-
-    print(correct_labels)
-    print(correct_predictions)
-
-    return accuracy, average_precision
-
-# print(ground_truth_labels_dict)
-print(pseudo_labels_dict)
+    # Implement the comparison logic here
+    # Note: This might require a more complex logic than the binary classification example
+    # because you're dealing with multiple labels per file.
+    pass  # Placeholder for the actual implementation
 
 accuracy, precision = calculate_accuracy_precision(ground_truth_labels_dict, pseudo_labels_dict)
 print("Accuracy:", accuracy)
 print("Precision:", precision)
-        
