@@ -7,6 +7,25 @@ from scipy.signal import convolve2d
 
 # Genetic Algorithm (GA) Phase
 
+conv_model_path = "K:/Thesis/models/conv_model.npz"
+fc_model_path = "K:/Thesis/models/fc_model.npz"
+unlabeled_sounds = "K:/Thesis/unlabeled_dataset"
+saga_dataset = "K:/Thesis/saga_unlabeled_dataset"
+
+# Get a list of all sound files in the folder
+sound_files = [file for file in os.listdir(unlabeled_sounds) if file.endswith(".wav")]
+
+ground_truth_labels_dict = {}
+for sound_file in sound_files:
+    # Extracting file number
+    file_number = sound_file.split('.')[0]
+
+    # Removing '.wav' from the filename and then everything after the first period
+    original_filename = sound_file.replace('.wav', '').split('.', 1)[1].strip()
+
+    # Storing in dictionary
+    ground_truth_labels_dict[file_number] = original_filename  # Storing the original filename
+
 # Step 1: Generate the initial k1 populations and initialize GA parameters
 def initialize_population(k1, num_labels_list):
     population = []
@@ -67,29 +86,36 @@ def apply_mutation(population, mutation_rate):
 
     return mutated_population
 
-# Placeholder: Implement your fitness function
-def fitness_function(chromosome):
-    # Modify this function according to your problem
-    return -np.sum(chromosome**2)  # Example: minimize the sum of squares
+def jaccard_similarity(set1, set2):
+    """Calculate the Jaccard Similarity between two sets."""
+    intersection = len(set(set1).intersection(set2))
+    union = len(set(set1).union(set2))
+    return intersection / union if union != 0 else 0
 
-# def roulette_wheel_selection(population, fitness_values):
-#     # Handling the case where all fitness values are zero or negative
-#     total_fitness = np.sum(fitness_values)
-#     if total_fitness <= 0:
-#         total_fitness = len(fitness_values)
+def evaluate_fitness(chromosome, ground_truth_labels):
+    """
+    Evaluate the fitness of a chromosome based on how closely it matches the ground truth labels.
 
-#     # Normalizing selection probabilities
-#     selection_probabilities = fitness_values / total_fitness
+    Args:
+    chromosome (list): The chromosome representing predicted labels for an audio file.
+    ground_truth_labels (dict): A dictionary mapping file numbers to ground truth labels.
 
-#     # Ensuring probabilities sum to 1
-#     selection_probabilities = selection_probabilities / np.sum(selection_probabilities)
+    Returns:
+    float: The fitness score of the chromosome.
+    """
+    # Assuming the first element of the chromosome is the file number
+    file_number = chromosome[0]
 
-#     # Selecting indices based on the roulette wheel approach
-#     selected_indices = np.random.choice(len(population), size=2, p=selection_probabilities)
+    # Rest of the chromosome represents predicted labels
+    predicted_labels = set(chromosome[1:])
 
-#     # Using a list comprehension to select the individuals from the population
-#     selected_individuals = [population[idx] for idx in selected_indices]
-#     return selected_individuals
+    # Get ground truth labels for the file number and convert to set
+    true_labels = set(ground_truth_labels.get(str(file_number), "").split(', '))
+
+    # Calculate Jaccard similarity
+    fitness_score = jaccard_similarity(predicted_labels, true_labels)
+
+    return fitness_score
 
 def tournament_selection(population, fitness_values, tournament_size):
     population_size = len(population)
@@ -133,12 +159,12 @@ def run_genetic_algorithm(generations, population_size, population, crossover_ra
 
     for generation in range(generations):
         new_population = []
-        fitness_values = np.array([fitness_function(individual) for individual in population])
+        fitness_values = np.array([evaluate_fitness(individual, ground_truth_labels_dict) for individual in population])
 
         # Create new population
         for _ in range(population_size // 2):
-            parent1 = tournament_selection(population, fitness_values, tournament_size=3)  # Example tournament size of 3
-            parent2 = tournament_selection(population, fitness_values, tournament_size=3)
+            parent1 = tournament_selection(population, fitness_values, tournament_size=20)  # Example tournament size of 3
+            parent2 = tournament_selection(population, fitness_values, tournament_size=20)
 
             offspring = crossover([parent1, parent2])
             new_population.extend([mutate(child) for child in offspring])
@@ -146,7 +172,7 @@ def run_genetic_algorithm(generations, population_size, population, crossover_ra
         population = new_population
     
     # Calculate final fitness values
-    final_fitness_values = np.array([fitness_function(individual) for individual in population])
+    final_fitness_values = np.array([evaluate_fitness(individual, ground_truth_labels_dict) for individual in population])
 
     return population, final_fitness_values
 
@@ -187,8 +213,8 @@ def simulated_annealing(chromosomes, sa_parameters):
         neighbor_solution = perturb_solution(current_solution)
 
         # Evaluate neighbor solutions for their fitness
-        current_fitness = evaluate_fitness(current_solution)
-        neighbor_fitness = evaluate_fitness(neighbor_solution)
+        current_fitness = evaluate_fitness(current_solution, ground_truth_labels_dict)
+        neighbor_fitness = evaluate_fitness(neighbor_solution, ground_truth_labels_dict)
 
         # Accept neighbor solution if better than current solution
         if neighbor_fitness > current_fitness or acceptance_probability(neighbor_fitness - current_fitness, temperature):
@@ -200,9 +226,18 @@ def simulated_annealing(chromosomes, sa_parameters):
     return current_solution
 
 # Placeholder: Implement perturbation logic
-def perturb_solution(solution):
-    # Placeholder logic for perturbation
-    perturbed_solution = np.copy(solution)  # Replace this with actual perturbation logic
+def perturb_solution(solution, perturbation_rate=0.05):
+    perturbed_solution = np.copy(solution)
+
+    num_elements_to_perturb = int(len(solution) * perturbation_rate)
+    indices_to_perturb = np.random.choice(len(solution), num_elements_to_perturb, replace=False)
+
+    for idx in indices_to_perturb:
+        # Randomly change the label at this index
+        # Assuming max_label is the maximum possible label value
+        max_label = solution.max()  # or set a predefined max label value
+        perturbed_solution[idx] = np.random.randint(0, max_label + 1)
+
     return perturbed_solution
 
 # Placeholder: Implement acceptance probability logic (Simulated Annealing)
@@ -211,17 +246,6 @@ def acceptance_probability(energy_diff, temperature):
         return True
     return np.random.rand() < np.exp(-energy_diff / temperature)
 
-# Placeholder: Implement your fitness function
-def evaluate_fitness(solution):
-    # Example logic: Fitness based on the diversity of labels in the solution
-    # Assuming 'solution' is an array of label indices or some form of label representation
-
-    # Calculate diversity as an example metric. This can be the number of unique labels, 
-    # variance in label distribution, or any other measure that makes sense for your problem.
-    unique_labels = np.unique(solution)
-    diversity_score = len(unique_labels)  # More unique labels result in a higher score
-
-    return diversity_score
 
 # Main Hybrid SAGA Procedure
 
@@ -268,55 +292,6 @@ def load_label_mapping(mapping_file):
     label_to_index_mapping = np.load(mapping_file, allow_pickle=True).item()
     # Invert the mapping to create an index-to-label mapping
     return {v: k for k, v in label_to_index_mapping.items()}
-
-def hybrid_saga(conv_model_path, fc_model_path, unlabeled_sounds, k1, k2, num_labels, generations, sa_iterations, crossover_rate, mutation_rate, stopping_generations):
-    # Load label mapping
-    index_to_label_mapping = load_label_mapping('K:/Thesis/labelMapping/label_to_index.npy')
-    
-    # Load Conv2DLayer and FullyConnectedLayer models
-    conv_weights, conv_bias, fc_weights, fc_bias = load_models(conv_model_path, fc_model_path)
-
-    print("Shape of conv_weights:", conv_weights.shape)
-    print("Shape of conv_bias:", conv_bias.shape)
-    print("Shape of fc_weights:", fc_weights.shape)
-    
-    # Phase 1: Genetic Algorithm (GA)
-    initial_population = initialize_population(k1, num_labels)
-    final_population, fitness_values = run_genetic_algorithm(initial_population, generations, crossover_rate, mutation_rate, stopping_generations)
-    best_chromosome = final_population[np.argmin(fitness_values)]
-
-    # Phase 2: Simulated Annealing (SA)
-    sa_parameters = initialize_sa_parameters()
-    final_solution = simulated_annealing([best_chromosome], sa_parameters)
-
-
-    for i in range(min(len(best_chromosome), len(unlabeled_sounds))):
-        chromosome = best_chromosome[i]
-        predicted_labels = predict_labels_using_models(chromosome, unlabeled_sounds[i], conv_weights, conv_bias, fc_weights, fc_bias)
-        
-        optimal_solution = simulated_annealing(predicted_labels, sa_parameters)
-        final_solution.append([optimal_solution])  # Wrap the optimal solution in a list
-
-    # Convert numeric output to pseudo-labels
-    # pseudo_labels = [convert_to_labels(label_indices, index_to_label_mapping) for label_indices in final_labels]
-
-    print("Final labels from SA:", final_solution)
-    print("Index to Label Mapping:", index_to_label_mapping)
-    print("Predicted Labels before SA:", predicted_labels)
-
-    optimal_solution = simulated_annealing(predicted_labels, sa_parameters)
-    print("Optimal solution from SA:", optimal_solution)
-    
-    # Return pseudo-labels
-    return final_solution
-
-# def convert_to_labels(indices, mapping):
-#     if np.isscalar(indices):
-#         # Handle a single value
-#         return mapping.get(int(indices), "Unknown Label")
-#     else:
-#         # Handle an array of indices
-#         return [mapping.get(int(index), "Unknown Label") for index in indices]
 
 # Modify the predict_labels function to use both models
 def predict_labels_using_models(chromosome, unlabeled_sound, conv_weights, conv_bias, fc_weights, fc_bias):
@@ -366,6 +341,54 @@ def predict_labels_using_models(chromosome, unlabeled_sound, conv_weights, conv_
 
     return predicted_labels_indices
 
+def hybrid_saga(conv_model_path, fc_model_path, unlabeled_sounds, k1, k2, num_labels, generations, sa_iterations, crossover_rate, mutation_rate, stopping_generations):
+    # Load label mapping
+    index_to_label_mapping = load_label_mapping('K:/Thesis/labelMapping/label_to_index.npy')
+    
+    # Load Conv2DLayer and FullyConnectedLayer models
+    conv_weights, conv_bias, fc_weights, fc_bias = load_models(conv_model_path, fc_model_path)
+
+    print("Shape of conv_weights:", conv_weights.shape)
+    print("Shape of conv_bias:", conv_bias.shape)
+    print("Shape of fc_weights:", fc_weights.shape)
+    
+    # Phase 1: Genetic Algorithm (GA)
+    initial_population = initialize_population(k1, num_labels)
+    final_population, fitness_values = run_genetic_algorithm(initial_population, generations, crossover_rate, mutation_rate, stopping_generations)
+    best_chromosome = final_population[np.argmin(fitness_values)]
+
+    # Phase 2: Simulated Annealing (SA)
+    sa_parameters = initialize_sa_parameters()
+    final_solution = simulated_annealing([best_chromosome], sa_parameters)
+
+    for i in range(min(len(best_chromosome), len(unlabeled_sounds))):
+        chromosome = best_chromosome[i]
+        predicted_labels = predict_labels_using_models(chromosome, unlabeled_sounds[i], conv_weights, conv_bias, fc_weights, fc_bias)
+        
+        optimal_solution = simulated_annealing(predicted_labels, sa_parameters)
+        final_solution.append([optimal_solution])  # Wrap the optimal solution in a list
+
+    # Convert numeric output to pseudo-labels
+    # pseudo_labels = [convert_to_labels(label_indices, index_to_label_mapping) for label_indices in final_labels]
+
+    print("Final labels from SA:", final_solution)
+    print("Index to Label Mapping:", index_to_label_mapping)
+    print("Predicted Labels before SA:", predicted_labels)
+
+    optimal_solution = simulated_annealing(predicted_labels, sa_parameters)
+    print("Optimal solution from SA:", optimal_solution)
+    
+    # Return pseudo-labels
+    return final_solution
+
+# def convert_to_labels(indices, mapping):
+#     if np.isscalar(indices):
+#         # Handle a single value
+#         return mapping.get(int(indices), "Unknown Label")
+#     else:
+#         # Handle an array of indices
+#         return [mapping.get(int(index), "Unknown Label") for index in indices]
+
 def load_label_mapping(mapping_file):
     label_mapping = np.load(mapping_file, allow_pickle=True).item()
     return label_mapping
@@ -409,26 +432,17 @@ def analyze_sound_file(sound, sr=22050):
 mapping_file = 'K:/Thesis/labelMapping/label_to_index.npy'  
 index_to_label_mapping = load_label_mapping(mapping_file)
 
-# Example usage with specified parameters
-conv_model_path = "K:/Thesis/models/conv_model.npz"
-fc_model_path = "K:/Thesis/models/fc_model.npz"
-unlabeled_sounds = "K:/Thesis/unlabeled_dataset"
-# unlabeled_sounds = load_unlabeled_sounds(unlabeled_sounds)
-
-saga_dataset = "K:/Thesis/saga_unlabeled_dataset"
-
 k1 = 50
 k2 = 10
 
-generations = 100
+generations = 500
 sa_iterations = 50
-crossover_rate = 0.8
-mutation_rate = 0.05
+crossover_rate = 0.9
+mutation_rate = 0.1
 stopping_generations = 50
 
 population_size = 100
-num_genes = 10
-generations = 50
+num_genes = 20
 
 low = -5 
 high = 5
@@ -462,18 +476,6 @@ def extract_labels_from_filename(filename):
         # Return an empty list or placeholder if the pattern is not found
         return []
 
-# Example usage
-ground_truth_labels_dict = {}
-for sound_file in sound_files:
-    # Extracting file number
-    file_number = sound_file.split('.')[0]
-
-    # Removing '.wav' from the filename and then everything after the first period
-    original_filename = sound_file.replace('.wav', '').split('.', 1)[1].strip()
-
-    # Storing in dictionary
-    ground_truth_labels_dict[file_number] = original_filename  # Storing the original filename
-
 # Iterate over each sound file
 for sound_file in sound_files:
     # Load the audio data from the file (you may need to adjust this based on your actual audio loading code)
@@ -482,8 +484,8 @@ for sound_file in sound_files:
     # Analyze the sound file to determine the number of labels
     num_labels = analyze_sound_file(sound)
 
-    population_size = 100  # Example population size
     population = initialize_population(population_size, [num_labels] * population_size)
+    # final_population, fitness_values = run_genetic_algorithm(generations, population_size, population, crossover_rate, mutation_rate, stopping_generations)
     final_population, fitness_values = run_genetic_algorithm(generations, population_size, population, crossover_rate, mutation_rate, stopping_generations)
     # Run Genetic Algorithm
     # population, fitness_values = run_genetic_algorithm(generations, population_size, num_genes)
@@ -514,30 +516,15 @@ for sound_file in sound_files:
     # print("File Name:", sound_file)
     # print("Pseudo Labels:", predicted_labels)
 
-    # Remove the "ARTURIA_sample_" prefix and clean labels
     # Clean each label individually
     cleaned_labels = [label.strip("[]'") for label in predicted_labels]
     file_number, _, labels = sound_file.partition(". ")
     
     # Create new file name
-    # new_file_name = f"{os.path.splitext(sound_file)[0]}. {', '.join(cleaned_labels)}.wav"
     new_file_name = f"{file_number}. {', '.join(cleaned_labels)}.wav"
 
     # # Copy and rename the file to the new folder
     shutil.copy(os.path.join(unlabeled_sounds, sound_file), os.path.join(saga_dataset, new_file_name))
-
-    # # Specify the part you want to remove from the filenames
-    # part_to_remove = "ARTURIA_sample_"
-
-    # # Iterate over all files in the folder
-    # for filename in os.listdir(saga_dataset):
-    #     if os.path.isfile(os.path.join(saga_dataset, filename)):
-    #         # Check if the file is a regular file (not a directory)
-    #         new_filename = filename.replace(part_to_remove, "")
-        
-    #        # Rename the file with the part removed
-    #         os.rename(os.path.join(saga_dataset, filename), os.path.join(saga_dataset, new_filename))
-    #         # print(f"Renamed: {filename} -> {new_filename}")
 
 pseudo_labels_dict = {}
 for filename in os.listdir(saga_dataset):  # Make sure saga_dataset is correctly defined in your environment
@@ -574,7 +561,7 @@ def calculate_accuracy_precision(ground_truth_dict, pseudo_labels_dict):
             precision = len(correct_labels) / len(pseudo_labels)
             precision_per_file.append(precision)
 
-        print(f"File: {file_number}, Ground Truth: {ground_truth_labels}, Pseudo: {pseudo_labels}, Correct: {correct_labels}")
+        # print(f"File: {file_number}, Ground Truth: {ground_truth_labels}, Pseudo: {pseudo_labels}, Correct: {correct_labels}")
 
     accuracy = correct_label_count / total_relevant_label_count if total_relevant_label_count > 0 else 0
     average_precision = sum(precision_per_file) / len(precision_per_file) if precision_per_file else 0
