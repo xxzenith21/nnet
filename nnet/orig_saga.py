@@ -445,19 +445,3 @@ for sound_file in sound_files:
     #print("File Name:", sound_file)
     #print("Pseudo Labels:", predicted_labels)
 
-pseudo_labels_dict = {}
-for filename in os.listdir(saga_dataset):
-    if filename.endswith('.wav'):
-        file_number = filename.split('.')[0]
-        labels = extract_labels_from_filename(filename)
-        pseudo_labels_dict[file_number] = labels
-
-def calculate_accuracy_precision(ground_truth_dict, pseudo_labels_dict):
-    # Implement the comparison logic here
-    # Note: This might require a more complex logic than the binary classification example
-    # because you're dealing with multiple labels per file.
-    pass  # Placeholder for the actual implementation
-
-accuracy, precision = calculate_accuracy_precision(ground_truth_labels_dict, pseudo_labels_dict)
-print("Accuracy:", accuracy)
-print("Precision:", precision)
