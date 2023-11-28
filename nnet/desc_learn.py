@@ -209,8 +209,6 @@ print(f"Testing Loss: {test_loss}")
 
 
 
-
-
 # Validation predictions and true labels
 validation_predictions = (fc_output_val > 0.5).astype(int)  # Adjust the threshold if needed
 validation_true_labels = label_matrix_val  # Assuming label_matrix_val contains true labels

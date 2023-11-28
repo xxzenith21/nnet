@@ -72,24 +72,43 @@ def fitness_function(chromosome):
     # Modify this function according to your problem
     return -np.sum(chromosome**2)  # Example: minimize the sum of squares
 
-def roulette_wheel_selection(population, fitness_values):
-    # Handling the case where all fitness values are zero or negative
-    total_fitness = np.sum(fitness_values)
-    if total_fitness <= 0:
-        total_fitness = len(fitness_values)
+# def roulette_wheel_selection(population, fitness_values):
+#     # Handling the case where all fitness values are zero or negative
+#     total_fitness = np.sum(fitness_values)
+#     if total_fitness <= 0:
+#         total_fitness = len(fitness_values)
 
-    # Normalizing selection probabilities
-    selection_probabilities = fitness_values / total_fitness
+#     # Normalizing selection probabilities
+#     selection_probabilities = fitness_values / total_fitness
 
-    # Ensuring probabilities sum to 1
-    selection_probabilities = selection_probabilities / np.sum(selection_probabilities)
+#     # Ensuring probabilities sum to 1
+#     selection_probabilities = selection_probabilities / np.sum(selection_probabilities)
 
-    # Selecting indices based on the roulette wheel approach
-    selected_indices = np.random.choice(len(population), size=2, p=selection_probabilities)
+#     # Selecting indices based on the roulette wheel approach
+#     selected_indices = np.random.choice(len(population), size=2, p=selection_probabilities)
 
-    # Using a list comprehension to select the individuals from the population
-    selected_individuals = [population[idx] for idx in selected_indices]
-    return selected_individuals
+#     # Using a list comprehension to select the individuals from the population
+#     selected_individuals = [population[idx] for idx in selected_indices]
+#     return selected_individuals
+
+def tournament_selection(population, fitness_values, tournament_size):
+    population_size = len(population)
+    # Ensure tournament_size does not exceed population_size
+    actual_tournament_size = min(tournament_size, population_size)
+
+    # Convert population to a NumPy array if it's not already
+    population_array = np.array(population)
+
+    # Randomly select individuals for the tournament
+    tournament_indices = np.random.choice(population_size, actual_tournament_size, replace=False)
+    tournament_individuals = population_array[tournament_indices]
+    tournament_fitness = fitness_values[tournament_indices]
+
+    # Find the index of the best individual in the tournament
+    best_index = np.argmax(tournament_fitness)
+    best_individual = tournament_individuals[best_index]
+
+    return best_individual
 
 def crossover(parents):
     # Arithmetic crossover example
@@ -118,8 +137,10 @@ def run_genetic_algorithm(generations, population_size, population, crossover_ra
 
         # Create new population
         for _ in range(population_size // 2):
-            parents = roulette_wheel_selection(population, fitness_values)
-            offspring = crossover(parents)
+            parent1 = tournament_selection(population, fitness_values, tournament_size=3)  # Example tournament size of 3
+            parent2 = tournament_selection(population, fitness_values, tournament_size=3)
+
+            offspring = crossover([parent1, parent2])
             new_population.extend([mutate(child) for child in offspring])
         
         population = new_population
@@ -444,8 +465,13 @@ def extract_labels_from_filename(filename):
 # Example usage
 ground_truth_labels_dict = {}
 for sound_file in sound_files:
-    file_number = sound_file.split('.')[0]  # Extracting file number
-    original_filename = sound_file.replace('.wav', '')
+    # Extracting file number
+    file_number = sound_file.split('.')[0]
+
+    # Removing '.wav' from the filename and then everything after the first period
+    original_filename = sound_file.replace('.wav', '').split('.', 1)[1].strip()
+
+    # Storing in dictionary
     ground_truth_labels_dict[file_number] = original_filename  # Storing the original filename
 
 # Iterate over each sound file
@@ -514,46 +540,53 @@ for sound_file in sound_files:
     #         # print(f"Renamed: {filename} -> {new_filename}")
 
 pseudo_labels_dict = {}
-for filename in os.listdir(saga_dataset):
+for filename in os.listdir(saga_dataset):  # Make sure saga_dataset is correctly defined in your environment
     if filename.endswith('.wav'):
+        # Extracting file number
         file_number = filename.split('.')[0]
-        original_filename = os.path.splitext(filename)[0]  # Remove the ".wav" extension
-        labels = extract_labels_from_filename(filename)
-        pseudo_labels_dict[file_number] = labels
+
+        # Extracting labels and removing '.wav' from the filename, then everything after the first period
+        labels_part = filename.replace('.wav', '').split('.', 1)[1].strip()
+        labels = [label.strip() for label in labels_part.split(',')]
+
+        # Storing in dictionary
+        pseudo_labels_dict[file_number] = labels_part
 
 def calculate_accuracy_precision(ground_truth_dict, pseudo_labels_dict):
-    # Initialize counts
-    total_files = len(ground_truth_dict)
-    correct_predictions = 0
-    total_predictions = 0
-    total_relevant_labels = 0
+    correct_label_count = 0
+    total_predicted_label_count = 0
+    total_relevant_label_count = 0
+    precision_per_file = []
 
     for file_number, ground_truth_labels in ground_truth_dict.items():
-        pseudo_labels = pseudo_labels_dict.get(file_number, [])  # Ensure pseudo_labels is a list
+        pseudo_labels = pseudo_labels_dict.get(file_number, [])
 
-        # Calculate accuracy
+        # Ensure labels are lists of strings
+        ground_truth_labels = ground_truth_labels.split(', ')
+        pseudo_labels = pseudo_labels.split(', ')
+
         correct_labels = set(ground_truth_labels).intersection(pseudo_labels)
-        correct_predictions += len(correct_labels)
-        total_relevant_labels += len(ground_truth_labels)
+        correct_label_count += len(correct_labels)
+        total_relevant_label_count += len(ground_truth_labels)
+        total_predicted_label_count += len(pseudo_labels)
 
-        # Calculate precision
         if len(pseudo_labels) > 0:
             precision = len(correct_labels) / len(pseudo_labels)
-            total_predictions += 1  # Increment by 1 for each file with predictions
+            precision_per_file.append(precision)
 
-    # Handling division by zero
-    accuracy = correct_predictions / total_relevant_labels if total_relevant_labels > 0 else 0
-    average_precision = correct_predictions / total_predictions if total_predictions > 0 else 0
+        print(f"File: {file_number}, Ground Truth: {ground_truth_labels}, Pseudo: {pseudo_labels}, Correct: {correct_labels}")
 
-    print(correct_labels)
-    print(correct_predictions)
+    accuracy = correct_label_count / total_relevant_label_count if total_relevant_label_count > 0 else 0
+    average_precision = sum(precision_per_file) / len(precision_per_file) if precision_per_file else 0
 
     return accuracy, average_precision
 
-# print(ground_truth_labels_dict)
-print(pseudo_labels_dict)
+# print(ground_truth_labels_dict, "\n\n\n")
+# print(pseudo_labels_dict, "\n\n\n")
 
 accuracy, precision = calculate_accuracy_precision(ground_truth_labels_dict, pseudo_labels_dict)
 print("Accuracy:", accuracy)
 print("Precision:", precision)
-        
+    
+
+
