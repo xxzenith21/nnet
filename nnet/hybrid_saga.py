@@ -5,6 +5,8 @@ import shutil
 import hashlib
 from scipy.signal import convolve2d
 
+import desc_learn
+
 # Genetic Algorithm (GA) Phase
 
 conv_model_path = "K:/Thesis/models/conv_model.npz"

@@ -6,9 +6,9 @@ from matplotlib import pyplot as plt
 from sklearn.model_selection import train_test_split
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.metrics import accuracy_score, precision_score
-# import spectro
-# import matrix_convert
-# import labels
+#import desc_features
+#import desc_labels
+#import desc_convert
 
 # NEURAL NETWORK MAIN
 def relu(x):
@@ -145,122 +145,95 @@ def get_audio_features(conv_layer, X):
     flattened_output = conv_output.reshape(conv_output.shape[0], -1)
     return flattened_output
     
-# Load the feature matrix (Shape: 100 samples, 7x7 features each)
-feature_matrix = np.load("K:/Thesis/featureMatrix/4d_matrix.npy")
-
-# Expand dimensions of feature_matrix to add channel dimension
+# Load the feature matrix and label matrix
+feature_matrix = np.load("K:/Thesis/featureMatrix/4d_matrix.npy", allow_pickle=True)
 feature_matrix = np.expand_dims(feature_matrix, axis=1)  # Shape: (100, 1, 7, 7)
 
-# Shape: (100, 1000, 2500, 1)
 label_matrix = np.load("K:/Thesis/labelMapping/label_matrix.npy", allow_pickle=True)
-
-# Neural network architecture
-conv_layer = Conv2DLayer(input_channels=1, output_channels=16, kernel_size=3, stride=2, padding=1)
-fc_layer = FullyConnectedLayer(input_size=16 * 4 * 4, output_size=96)  # Adjust output size to match the number of labels (96)
-
-# Forward pass through the network
-conv_output = conv_layer.forward(feature_matrix)
-fc_output = fc_layer.forward(conv_output.reshape(conv_output.shape[0], -1))
-
-print(f"Convolutional Layer Output Shape: {conv_output.shape}")
-print(f"Fully Connected Layer Output Shape: {fc_output.shape}")
-
-audio_features = get_audio_features(conv_layer, feature_matrix)
-print("Audio Features Shape:", audio_features.shape)
-np.save("K:/Thesis/audio_features/audio_features.npy", audio_features)
-
-learning_rate = 0.01
-epochs = 100  # Adjust as necessary
-gradient_descent(feature_matrix, label_matrix, learning_rate, epochs, conv_layer, fc_layer)
-
-# Visualization of the feature maps
-# visualize_feature_maps(conv_output, num_filters=16)  # Assuming 16 filters in conv_layer
-
-conv_layer.save_model("K:/Thesis/models/conv_model.npz")
-fc_layer.save_model("K:/Thesis/models/fc_model.npz")
 
 # Split your data into training, validation, and testing sets
 feature_matrix_train, feature_matrix_temp, label_matrix_train, label_matrix_temp = train_test_split(feature_matrix, label_matrix, test_size=0.2, random_state=42)
-
 feature_matrix_val, feature_matrix_test, label_matrix_val, label_matrix_test = train_test_split(feature_matrix_temp, label_matrix_temp, test_size=0.5, random_state=42)
 
+# Neural network architecture
 conv_layer = Conv2DLayer(input_channels=1, output_channels=16, kernel_size=3, stride=2, padding=1)
-fc_layer = FullyConnectedLayer(input_size=16 * 4 * 4, output_size=96)
+fc_layer = FullyConnectedLayer(input_size=16 * 4 * 4, output_size=176)  # Adjust output size to match the number of labels
 
-# Validation
-conv_output_val = conv_layer.forward(feature_matrix_val)
-fc_output_val = fc_layer.forward(conv_output_val.reshape(conv_output_val.shape[0], -1))
+# Training process
+learning_rate = 0.05
+epochs = 500  # Adjust as necessary
+gradient_descent(feature_matrix_train, label_matrix_train, learning_rate, epochs, conv_layer, fc_layer)
+print("\n\n")
 
-# Calculate validation loss
-validation_loss = binary_crossentropy(label_matrix_val, fc_output_val)
-print(f"Validation Loss: {validation_loss}")
 
-# Testing
-conv_output_test = conv_layer.forward(feature_matrix_test)
-fc_output_test = fc_layer.forward(conv_output_test.reshape(conv_output_test.shape[0], -1))
-
-# Calculate testing loss
-test_loss = binary_crossentropy(label_matrix_test, fc_output_test)
-print(f"Testing Loss: {test_loss}")
-
-# You can also calculate accuracy or other evaluation metrics for validation and testing here if needed.
+# Save models
+conv_layer.save_model("K:/Thesis/models/conv_model.npz")
+fc_layer.save_model("K:/Thesis/models/fc_model.npz")
 
 
 
 
 
-# Validation predictions and true labels
-validation_predictions = (fc_output_val > 0.5).astype(int)  # Adjust the threshold if needed
-validation_true_labels = label_matrix_val  # Assuming label_matrix_val contains true labels
 
-# Testing predictions and true labels
-testing_predictions = (fc_output_test > 0.5).astype(int)  # Adjust the threshold if needed
-testing_true_labels = label_matrix_test  # Assuming label_matrix_test contains true labels
 
-# Calculate accuracy for validation
-validation_accuracy = accuracy_score(validation_true_labels, validation_predictions)
 
-# Calculate precision for validation
-validation_precision = precision_score(validation_true_labels, validation_predictions, average='micro')
 
-# Calculate accuracy for testing
-testing_accuracy = accuracy_score(testing_true_labels, testing_predictions)
+# def evaluate_performance(X, Y, conv_layer, fc_layer):
+#     conv_output = conv_layer.forward(X)
+#     fc_output = fc_layer.forward(conv_output.reshape(conv_output.shape[0], -1))
 
-# Calculate precision for testing
-testing_precision = precision_score(testing_true_labels, testing_predictions, average='micro')
+#     loss = binary_crossentropy(Y, fc_output)
+#     print(f"Loss: {loss}")
 
-def calculate_performance_metrics(predictions, labels):
-    true_positives = 0
-    true_negatives = 0
-    false_positives = 0
-    false_negatives = 0
+#     predictions = (fc_output > 0.5).astype(int)
+#     accuracy = accuracy_score(Y, predictions)
+#     precision = precision_score(Y, predictions, average='micro')
 
-    for pred, label in zip(predictions, labels):
-        if np.any(pred == 1):  # Check if any element in the prediction array is equal to 1
-            if np.any(label == 1):  # Check if any element in the label array is equal to 1
-                true_positives += 1
-            else:
-                false_positives += 1
-        else:
-            if np.all(label == 0):  # Check if all elements in the label array are equal to 0
-                true_negatives += 1
-            else:
-                false_negatives += 1
+#     return accuracy, precision
 
-    precision = true_positives / (true_positives + false_positives) if (true_positives + false_positives) > 0 else 0
-    accuracy = (true_positives + true_negatives) / len(predictions)
+# train_accuracy, train_precision = evaluate_performance(feature_matrix_train, label_matrix_train, conv_layer, fc_layer)
+# print("Training Accuracy:", train_accuracy)
+# print("Training Precision: ", train_precision)
+# print("\n\n")
 
-    return precision, accuracy
+# val_accuracy, val_precision = evaluate_performance(feature_matrix_val, label_matrix_val, conv_layer, fc_layer)
+# print("Validation Accuracy:", val_accuracy)
+# print("Validation Precision:", val_precision)
+# print("\n\n")
 
-# Replace with your predictions and labels
-validation_predictions = np.array(validation_predictions)  # Ensure they are NumPy arrays
-validation_true_labels = np.array(validation_true_labels)  # Ensure they are NumPy arrays
-validation_precision, validation_accuracy = calculate_performance_metrics(validation_predictions, validation_true_labels)
-testing_predictions = np.array(testing_predictions)  # Ensure they are NumPy arrays
-testing_true_labels = np.array(testing_true_labels)  # Ensure they are NumPy arrays
-testing_precision, testing_accuracy = calculate_performance_metrics(testing_predictions, testing_true_labels)
+# test_accuracy, test_precision = evaluate_performance(feature_matrix_test, label_matrix_test, conv_layer, fc_layer)
+# print("Testing Accuracy:", test_accuracy)
+# print("Testing Precision:", test_precision)
+# print("\n\n")
 
-print("Validation Precision:", validation_precision)
-print("Validation Accuracy:", validation_accuracy)
-print("Testing Precision:", testing_precision)  
-print("Testing Accuracy:", testing_accuracy)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
