@@ -541,6 +541,8 @@ for filename in os.listdir(saga_dataset):  # Make sure saga_dataset is correctly
         # Storing in dictionary
         pseudo_labels_dict[file_number] = labels_part
 
+print("Calculating accuracy and precision . . . . . . . . . ")
+
 def calculate_accuracy_precision(ground_truth_dict, pseudo_labels_dict):
     correct_label_count = 0
     total_predicted_label_count = 0

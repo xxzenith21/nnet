@@ -195,8 +195,6 @@ def adjust_settings_based_on_input(user_description, settings):
 
     return settings
 
-# user_description = "smooth, acoustic, reverb, sad, horn"
-
 def get_user_input():
     user_input = input("Enter a description of the sound you want to generate: ")
     return user_input

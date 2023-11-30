@@ -3,7 +3,7 @@ import csv
 import random
 from pyo import *
 
-dataset_output = "K:/Thesis/synth_settings_dataset"
+dataset_output = "K:/Thesis/synth_settings/synth_settings_dataset"
 
 # Function to clear the contents of a folder
 def clear_folder(folder_path):
@@ -140,4 +140,4 @@ def create_dataset(num_samples, dataset_output):
     s.stop()
 
 if __name__ == "__main__":
-    create_dataset(100, dataset_output)
+    create_dataset(200, dataset_output)

@@ -161,7 +161,7 @@ fc_layer = FullyConnectedLayer(input_size=16 * 4 * 4, output_size=176)  # Adjust
 
 # Training process
 learning_rate = 0.05
-epochs = 500  # Adjust as necessary
+epochs = 100  # Adjust as necessary
 gradient_descent(feature_matrix_train, label_matrix_train, learning_rate, epochs, conv_layer, fc_layer)
 print("\n\n")
 
