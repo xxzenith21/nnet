@@ -5,7 +5,7 @@ import shutil
 import hashlib
 from scipy.signal import convolve2d
 
-import desc_learn
+# import desc_learn
 
 # Genetic Algorithm (GA) Phase
 
@@ -437,16 +437,16 @@ index_to_label_mapping = load_label_mapping(mapping_file)
 k1 = 50
 k2 = 10
 
-generations = 500
-sa_iterations = 50
+generations = 5
+sa_iterations = 10
 crossover_rate = 0.9
 mutation_rate = 0.1
-stopping_generations = 50
+stopping_generations = 10
 
-population_size = 100
+population_size = 10
 num_genes = 20
 
-low = -5 
+low = -5
 high = 5
 
 # Get a list of all sound files in the folder
@@ -478,106 +478,108 @@ def extract_labels_from_filename(filename):
         # Return an empty list or placeholder if the pattern is not found
         return []
 
-# Iterate over each sound file
-for sound_file in sound_files:
-    # Load the audio data from the file (you may need to adjust this based on your actual audio loading code)
-    sound, _ = librosa.load(os.path.join(unlabeled_sounds, sound_file), sr=None)
 
-    # Analyze the sound file to determine the number of labels
-    num_labels = analyze_sound_file(sound)
+if __name__ == "__main__":
+    # Iterate over each sound file
+    for sound_file in sound_files:
+        # Load the audio data from the file (you may need to adjust this based on your actual audio loading code)
+        sound, _ = librosa.load(os.path.join(unlabeled_sounds, sound_file), sr=None)
 
-    population = initialize_population(population_size, [num_labels] * population_size)
-    # final_population, fitness_values = run_genetic_algorithm(generations, population_size, population, crossover_rate, mutation_rate, stopping_generations)
-    final_population, fitness_values = run_genetic_algorithm(generations, population_size, population, crossover_rate, mutation_rate, stopping_generations)
-    # Run Genetic Algorithm
-    # population, fitness_values = run_genetic_algorithm(generations, population_size, num_genes)
-    best_chromosome_index = np.argmin(fitness_values)
-    best_chromosome = population[best_chromosome_index]
+        # Analyze the sound file to determine the number of labels
+        num_labels = analyze_sound_file(sound)
 
-    # Initialize SA parameters
-    sa_parameters = initialize_sa_parameters()
+        population = initialize_population(population_size, [num_labels] * population_size)
+        # final_population, fitness_values = run_genetic_algorithm(generations, population_size, population, crossover_rate, mutation_rate, stopping_generations)
+        final_population, fitness_values = run_genetic_algorithm(generations, population_size, population, crossover_rate, mutation_rate, stopping_generations)
+        # Run Genetic Algorithm
+        # population, fitness_values = run_genetic_algorithm(generations, population_size, num_genes)
+        best_chromosome_index = np.argmin(fitness_values)
+        best_chromosome = population[best_chromosome_index]
 
-    # Apply Simulated Annealing on the best solution from GA
-    final_solution = simulated_annealing([best_chromosome], sa_parameters)
-    # print("Best solution from GA:", best_chromosome)
-    # print("Final solution after SA:", final_solution)
+        # Initialize SA parameters
+        sa_parameters = initialize_sa_parameters()
 
-    min_val = np.min(final_solution)
-    max_val = np.max(final_solution)
-    total_labels_count = len(index_to_label_mapping)
+        # Apply Simulated Annealing on the best solution from GA
+        final_solution = simulated_annealing([best_chromosome], sa_parameters)
+        # print("Best solution from GA:", best_chromosome)
+        # print("Final solution after SA:", final_solution)
 
-    # Normalize and discretize the final solution
-    discrete_solution = normalize_and_discretize(final_solution, min_val, max_val, total_labels_count)
+        min_val = np.min(final_solution)
+        max_val = np.max(final_solution)
+        total_labels_count = len(index_to_label_mapping)
 
-    # Convert discrete indices to labels
-    textual_labels = [index_to_label_mapping.get(index, "Unknown Label") for index in discrete_solution]
+        # Normalize and discretize the final solution
+        discrete_solution = normalize_and_discretize(final_solution, min_val, max_val, total_labels_count)
 
-    for number in discrete_solution:
-        predicted_labels = [next((label for label, index in index_to_label_mapping.items() if index == number), "Unknown Label") for number in discrete_solution]
+        # Convert discrete indices to labels
+        textual_labels = [index_to_label_mapping.get(index, "Unknown Label") for index in discrete_solution]
 
-    # print("File Name:", sound_file)
-    # print("Pseudo Labels:", predicted_labels)
+        for number in discrete_solution:
+            predicted_labels = [next((label for label, index in index_to_label_mapping.items() if index == number), "Unknown Label") for number in discrete_solution]
 
-    # Clean each label individually
-    cleaned_labels = [label.strip("[]'") for label in predicted_labels]
-    file_number, _, labels = sound_file.partition(". ")
+        # print("File Name:", sound_file)
+        # print("Pseudo Labels:", predicted_labels)
+
+        # Clean each label individually
+        cleaned_labels = [label.strip("[]'") for label in predicted_labels]
+        file_number, _, labels = sound_file.partition(". ")
     
-    # Create new file name
-    new_file_name = f"{file_number}. {', '.join(cleaned_labels)}.wav"
+        # Create new file name
+        new_file_name = f"{file_number}. {', '.join(cleaned_labels)}.wav"
 
-    # # Copy and rename the file to the new folder
-    shutil.copy(os.path.join(unlabeled_sounds, sound_file), os.path.join(saga_dataset, new_file_name))
+        # # Copy and rename the file to the new folder
+        shutil.copy(os.path.join(unlabeled_sounds, sound_file), os.path.join(saga_dataset, new_file_name))
 
-pseudo_labels_dict = {}
-for filename in os.listdir(saga_dataset):  # Make sure saga_dataset is correctly defined in your environment
-    if filename.endswith('.wav'):
-        # Extracting file number
-        file_number = filename.split('.')[0]
+    pseudo_labels_dict = {}
+    for filename in os.listdir(saga_dataset):  # Make sure saga_dataset is correctly defined in your environment
+        if filename.endswith('.wav'):
+                # Extracting file number
+            file_number = filename.split('.')[0]
 
-        # Extracting labels and removing '.wav' from the filename, then everything after the first period
-        labels_part = filename.replace('.wav', '').split('.', 1)[1].strip()
-        labels = [label.strip() for label in labels_part.split(',')]
+            # Extracting labels and removing '.wav' from the filename, then everything after the first period
+            labels_part = filename.replace('.wav', '').split('.', 1)[1].strip()
+            labels = [label.strip() for label in labels_part.split(',')]
 
-        # Storing in dictionary
-        pseudo_labels_dict[file_number] = labels_part
+            # Storing in dictionary
+            pseudo_labels_dict[file_number] = labels_part
 
-print("Calculating accuracy and precision . . . . . . . . . ")
+    print("Calculating accuracy and precision . . . . . . . . . ")
 
-def calculate_accuracy_precision(ground_truth_dict, pseudo_labels_dict):
-    correct_label_count = 0
-    total_predicted_label_count = 0
-    total_relevant_label_count = 0
-    precision_per_file = []
+    def calculate_accuracy_precision(ground_truth_dict, pseudo_labels_dict):
+        correct_label_count = 0
+        total_predicted_label_count = 0
+        total_relevant_label_count = 0
+        precision_per_file = []
 
-    for file_number, ground_truth_labels in ground_truth_dict.items():
-        pseudo_labels = pseudo_labels_dict.get(file_number, [])
+        for file_number, ground_truth_labels in ground_truth_dict.items():
+            pseudo_labels = pseudo_labels_dict.get(file_number, [])
 
-        # Ensure labels are lists of strings
-        ground_truth_labels = ground_truth_labels.split(', ')
-        pseudo_labels = pseudo_labels.split(', ')
+            # Ensure labels are lists of strings
+            ground_truth_labels = ground_truth_labels.split(', ')
+            pseudo_labels = pseudo_labels.split(', ')
 
-        correct_labels = set(ground_truth_labels).intersection(pseudo_labels)
-        correct_label_count += len(correct_labels)
-        total_relevant_label_count += len(ground_truth_labels)
-        total_predicted_label_count += len(pseudo_labels)
+            correct_labels = set(ground_truth_labels).intersection(pseudo_labels)
+            correct_label_count += len(correct_labels)
+            total_relevant_label_count += len(ground_truth_labels)
+            total_predicted_label_count += len(pseudo_labels)
 
-        if len(pseudo_labels) > 0:
-            precision = len(correct_labels) / len(pseudo_labels)
-            precision_per_file.append(precision)
+            if len(pseudo_labels) > 0:
+                precision = len(correct_labels) / len(pseudo_labels)
+                precision_per_file.append(precision)
 
-        # print(f"File: {file_number}, Ground Truth: {ground_truth_labels}, Pseudo: {pseudo_labels}, Correct: {correct_labels}")
+            # print(f"File: {file_number}, Ground Truth: {ground_truth_labels}, Pseudo: {pseudo_labels}, Correct: {correct_labels}")
 
-    accuracy = correct_label_count / total_relevant_label_count if total_relevant_label_count > 0 else 0
-    average_precision = sum(precision_per_file) / len(precision_per_file) if precision_per_file else 0
+        accuracy = correct_label_count / total_relevant_label_count if total_relevant_label_count > 0 else 0
+        average_precision = sum(precision_per_file) / len(precision_per_file) if precision_per_file else 0
 
-    return accuracy, average_precision
+        return accuracy, average_precision
 
-# print(ground_truth_labels_dict, "\n\n\n")
-# print(pseudo_labels_dict, "\n\n\n")
+    # print(ground_truth_labels_dict, "\n\n\n")
+    # print(pseudo_labels_dict, "\n\n\n")
 
-accuracy, precision = calculate_accuracy_precision(ground_truth_labels_dict, pseudo_labels_dict)
-print("Accuracy:", accuracy)
-print("Precision:", precision)
+    accuracy, precision = calculate_accuracy_precision(ground_truth_labels_dict, pseudo_labels_dict)
+    print("Accuracy:", accuracy)
+    print("Precision:", precision)
     
 
 

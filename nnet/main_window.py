@@ -1,11 +1,13 @@
 import sys
 from PyQt5.QtWidgets import QApplication, QMainWindow, QPushButton, QLabel, QFileDialog, QTextEdit, QProgressBar, QTabWidget, QWidget
-from PyQt5.QtCore import QTimer, QThread
+from PyQt5.QtCore import QTimer, QThread, QObject, pyqtSignal
 from saga_worker import HybridSAGAWorker
+import hybrid_saga as hsa
 
 class PseudoLabelingWindow(QMainWindow):
     def __init__(self):
         super().__init__()
+        self.thread = QThread() 
 
         self.setWindowTitle("Pseudolabeling & Synthesizer Prediction Interface")
         self.setGeometry(100, 100, 800, 600)
@@ -37,6 +39,9 @@ class PseudoLabelingWindow(QMainWindow):
         self.load_button.setGeometry(50, 50, 200, 30)
         self.load_button.clicked.connect(self.load_audio)
 
+        self.startButton = QPushButton("Start Processing", self)
+        self.startButton.clicked.connect(self.startProcessing)
+
         self.label = QLabel("Pseudolabels:", self.tab_pseudo_labeling)
         self.label.setGeometry(50, 100, 150, 30)
 
@@ -61,6 +66,8 @@ class PseudoLabelingWindow(QMainWindow):
 
         # Initialize a list to store loaded file paths and pseudolabels
         self.loaded_files = []
+
+        
 
         # Create widgets for the synthesizer prediction tab
         self.text_input_synthesizer = QTextEdit(self.tab_synthesizer_prediction)
@@ -196,6 +203,66 @@ class PseudoLabelingWindow(QMainWindow):
             'Delay Feedback': 1.0260160475014405e-07,
             'Delay Mix': 2.0418802925804224e-09
         }
+    
+    def startProcessing(self):
+        if not self.loaded_files:
+            QMessageBox.warning(self, "Warning", "Please load audio files first.")
+            return
+
+        # Start processing
+        self.thread = QThread()
+        self.worker = HybridSAGAWorker(self.loaded_files)
+        self.worker.moveToThread(self.thread)
+        self.worker.finished.connect(self.thread.quit)
+        self.worker.progress.connect(self.updateProgressBar)
+        self.worker.result.connect(self.displayResults)
+        self.thread.started.connect(self.worker.run)
+        self.thread.start()
+        self.startButton.setEnabled(False)
+    
+    def startHybridSAGA(self):
+        conv_model_path = "K:/Thesis/models/conv_model.npz"
+        fc_model_path = "K:/Thesis/models/fc_model.npz"
+        mapping_file = 'K:/Thesis/labelMapping/label_to_index.npy'  
+
+        if not hasattr(self, 'unlabeled_sounds_path') or not self.unlabeled_sounds_path:
+            QMessageBox.warning(self, "Warning", "Please load audio files first.")
+            return
+        
+        self.worker = HybridSAGAWorker(
+            self.loaded_files,
+            self.conv_model_path,
+            self.fc_model_path,
+            self.mapping_file
+        )
+
+        self.worker.moveToThread(self.thread)
+        self.worker.finished.connect(self.thread.quit)
+        self.worker.progress.connect(self.updateProgressBar)
+        self.worker.result.connect(self.displayResults)
+        self.thread.started.connect(self.worker.run)
+        self.thread.start()
+
+        # Disable the start button to prevent re-clicking
+        self.startButton.setEnabled(False)
+
+    def updateProgressBar(self, value):
+        self.progressBar.setValue(value)
+
+    def displayResults(self, results):
+    # Assuming `self.resultsDisplay` is a QTextEdit or similar widget in your GUI
+    # and `results` is a list of strings or similar data structure.
+
+        # Clear existing content in the results display
+        self.pseudolabels_display.clear()
+
+        # Convert results to a string format and add them to the display
+        for result in results:
+            formatted_result = ', '.join(result)  # Format the result as needed
+            self.pseudolabels_display.append(formatted_result)
+
+        # Re-enable the start button if needed
+        self.startButton.setEnabled(True)
 
 def main():
     app = QApplication(sys.argv)
