@@ -89,7 +89,7 @@ categorical_columns = [
     'oscillator_type', 'distortion_type', 'lfo_freq', 'delay_freq'
 ]
 
-# Correctly call the function with these arguments
+# call the function with these arguments
 label_matrix, label_to_index = load_and_process_labels(
     csv_file_path, continuous_columns, categorical_columns
 )
@@ -98,7 +98,7 @@ label_matrix, label_to_index = load_and_process_labels(
 np.save(label_matrix_file, label_matrix)
 np.save(label_mapping_file, label_to_index)
 
-# # Print shapes to verify
+# Print shapes to verify
 # print(f"Shape of Label Matrix: {label_matrix.shape}")
 # print("Label-to-Index Mapping:", label_to_index)
 

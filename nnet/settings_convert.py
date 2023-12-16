@@ -1,6 +1,6 @@
 import numpy as np
 from sklearn.decomposition import PCA
-import settings_features
+# import settings_features
 
 # Load the feature matrix
 feature_matrix = np.load("K:/Thesis/synth_settings/settings_features_matrix/settings_feature_matrix.npy")

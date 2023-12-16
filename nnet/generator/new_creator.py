@@ -53,6 +53,21 @@ def generate_synthesizer_parameters():
         "filter_freq": random.uniform(500, 5000),  # Filter cutoff frequency in Hz
         "filter_key_track": random.uniform(1, 101)  # Filter key track
     }
+
+    # Constrained ADSR parameters
+    total_adsr_time = 2  # Total time for ADSR in seconds
+    attack = random.uniform(0, total_adsr_time / 4)
+    decay = random.uniform(0, (total_adsr_time - attack) / 3)
+    sustain_level = random.uniform(0, 1)  # Sustain is a level, not a time
+    release = random.uniform(0, total_adsr_time - attack - decay)
+
+    params.update({
+        "attack": attack,
+        "decay": decay,
+        "sustain": sustain_level,
+        "release": release
+    })
+
     return params
 
 def synthesize_sound(params, file_path, server):
@@ -102,13 +117,18 @@ def synthesize_sound(params, file_path, server):
     # Create Record object to start recording
     rec = Record(filt, filename=file_path, fileformat=0, sampletype=0)
 
-    # Start the envelope and let the sound play
+     # Start the envelope and let the sound play
     env.play()
 
-    # Wait for the sound to be fully played
-    server.recstart()  # Start server recording
-    time.sleep(params['release'] + 1)  # Use time.sleep() to wait
-    server.recstop()   # Stop server recording
+    # Start server recording
+    server.recstart()
+
+    # Adjust the duration to ensure the total sound duration does not exceed 2 seconds
+    sound_duration = min(2, params['release'] + 0.5)  # Adjust the additional time if needed
+    time.sleep(sound_duration)
+
+    # Stop server recording
+    server.recstop()
 
     # Stop the Record object
     rec.stop()
