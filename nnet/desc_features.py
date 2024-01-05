@@ -77,7 +77,7 @@ def extract_features_from_spectrogram(spectro_path, sr):
     spectral_centroid = librosa.feature.spectral_centroid(y=spectro_array.mean(axis=-1), sr=sr)
     spectral_bandwidth = librosa.feature.spectral_bandwidth(y=spectro_array.mean(axis=-1), sr=sr)
     rolloff = librosa.feature.spectral_rolloff(y=spectro_array.mean(axis=-1), sr=sr)
-
+    
     # Extract pitch range
     pitches, magnitudes = librosa.core.piptrack(y=spectro_array.mean(axis=-1), sr=sr)
     pitch_range = np.max(pitches, axis=0) - np.min(pitches, axis=0)

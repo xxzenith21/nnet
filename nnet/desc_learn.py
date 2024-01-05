@@ -35,8 +35,6 @@ def back_prop(conv_layer, fc_layer, X, Y, conv_output, fc_output):
     dW2 = np.dot(conv_output.reshape(m, -1).T, dZ2) / m
     db2 = np.sum(dZ2, axis=0, keepdims=True) / m
 
-    # Backpropagation through the convolutional layer would go here
-    # Placeholder for convolutional layer gradients
     dW1, db1 = np.zeros_like(conv_layer.weights), np.zeros_like(conv_layer.bias)
 
     return dW1, db1, dW2, db2

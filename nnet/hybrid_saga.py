@@ -89,22 +89,11 @@ def apply_mutation(population, mutation_rate):
     return mutated_population
 
 def jaccard_similarity(set1, set2):
-    """Calculate the Jaccard Similarity between two sets."""
     intersection = len(set(set1).intersection(set2))
     union = len(set(set1).union(set2))
     return intersection / union if union != 0 else 0
 
 def evaluate_fitness(chromosome, ground_truth_labels):
-    """
-    Evaluate the fitness of a chromosome based on how closely it matches the ground truth labels.
-
-    Args:
-    chromosome (list): The chromosome representing predicted labels for an audio file.
-    ground_truth_labels (dict): A dictionary mapping file numbers to ground truth labels.
-
-    Returns:
-    float: The fitness score of the chromosome.
-    """
     # Assuming the first element of the chromosome is the file number
     file_number = chromosome[0]
 
@@ -152,6 +141,7 @@ def mutate(chromosome, mutation_rate=0.1):
         mutation_value = np.random.normal()
         gene_index = np.random.randint(len(chromosome))
         chromosome[gene_index] += mutation_value
+        
     return chromosome
 
 # Main GA Procedure
@@ -206,27 +196,6 @@ def initialize_sa_parameters():
     cooling_rate = 0.95
     return temperature, cooling_rate
 
-def simulated_annealing(chromosomes, sa_parameters):
-    temperature, cooling_rate = sa_parameters
-    current_solution = np.array(chromosomes[0])  # Convert to NumPy array
-
-    while temperature > 0.1:  # Adjust stopping criterion as needed
-        # Generate neighbor solution by perturbation
-        neighbor_solution = perturb_solution(current_solution)
-
-        # Evaluate neighbor solutions for their fitness
-        current_fitness = evaluate_fitness(current_solution, ground_truth_labels_dict)
-        neighbor_fitness = evaluate_fitness(neighbor_solution, ground_truth_labels_dict)
-
-        # Accept neighbor solution if better than current solution
-        if neighbor_fitness > current_fitness or acceptance_probability(neighbor_fitness - current_fitness, temperature):
-            current_solution = neighbor_solution
-
-        # Cooling
-        temperature *= cooling_rate
-
-    return current_solution
-
 # Placeholder: Implement perturbation logic
 def perturb_solution(solution, perturbation_rate=0.05):
     perturbed_solution = np.copy(solution)
@@ -248,6 +217,26 @@ def acceptance_probability(energy_diff, temperature):
         return True
     return np.random.rand() < np.exp(-energy_diff / temperature)
 
+def simulated_annealing(chromosomes, sa_parameters):
+    temperature, cooling_rate = sa_parameters
+    current_solution = np.array(chromosomes[0])  # Convert to NumPy array
+
+    while temperature > 0.1:  # Adjust stopping criterion as needed
+        # Generate neighbor solution by perturbation
+        neighbor_solution = perturb_solution(current_solution)
+
+        # Evaluate neighbor solutions for their fitness
+        current_fitness = evaluate_fitness(current_solution, ground_truth_labels_dict)
+        neighbor_fitness = evaluate_fitness(neighbor_solution, ground_truth_labels_dict)
+
+        # Accept neighbor solution if better than current solution
+        if neighbor_fitness > current_fitness or acceptance_probability(neighbor_fitness - current_fitness, temperature):
+            current_solution = neighbor_solution
+
+        # Cooling
+        temperature *= cooling_rate
+
+    return current_solution
 
 # Main Hybrid SAGA Procedure
 
