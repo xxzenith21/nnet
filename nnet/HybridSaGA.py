@@ -33,7 +33,7 @@ def initialize_population(k1, num_labels_list):
     population = []
     for num_labels in num_labels_list:
         min_label_index = 0
-        max_label_index = 248
+        max_label_index = 247
         individual = np.random.randint(min_label_index, max_label_index + 1, size=num_labels)
         population.append(individual)
     return population
@@ -332,54 +332,6 @@ def predict_labels_using_models(chromosome, unlabeled_sound, conv_weights, conv_
 
     return predicted_labels_indices
 
-def hybrid_saga(conv_model_path, fc_model_path, unlabeled_sounds, k1, k2, num_labels, generations, sa_iterations, crossover_rate, mutation_rate, stopping_generations):
-    # Load label mapping
-    index_to_label_mapping = load_label_mapping('K:/Thesis/labelMapping/label_to_index.npy')
-    
-    # Load Conv2DLayer and FullyConnectedLayer models
-    conv_weights, conv_bias, fc_weights, fc_bias = load_models(conv_model_path, fc_model_path)
-
-    print("Shape of conv_weights:", conv_weights.shape)
-    print("Shape of conv_bias:", conv_bias.shape)
-    print("Shape of fc_weights:", fc_weights.shape)
-    
-    # Phase 1: Genetic Algorithm (GA)
-    initial_population = initialize_population(k1, num_labels)
-    final_population, fitness_values = run_genetic_algorithm(initial_population, generations, crossover_rate, mutation_rate, stopping_generations)
-    best_chromosome = final_population[np.argmin(fitness_values)]
-
-    # Phase 2: Simulated Annealing (SA)
-    sa_parameters = initialize_sa_parameters()
-    final_solution = simulated_annealing([best_chromosome], sa_parameters)
-
-    for i in range(min(len(best_chromosome), len(unlabeled_sounds))):
-        chromosome = best_chromosome[i]
-        predicted_labels = predict_labels_using_models(chromosome, unlabeled_sounds[i], conv_weights, conv_bias, fc_weights, fc_bias)
-        
-        optimal_solution = simulated_annealing(predicted_labels, sa_parameters)
-        final_solution.append([optimal_solution])  # Wrap the optimal solution in a list
-
-    # Convert numeric output to pseudo-labels
-    # pseudo_labels = [convert_to_labels(label_indices, index_to_label_mapping) for label_indices in final_labels]
-
-    print("Final labels from SA:", final_solution)
-    print("Index to Label Mapping:", index_to_label_mapping)
-    print("Predicted Labels before SA:", predicted_labels)
-
-    optimal_solution = simulated_annealing(predicted_labels, sa_parameters)
-    print("Optimal solution from SA:", optimal_solution)
-    
-    # Return pseudo-labels
-    return final_solution
-
-# def convert_to_labels(indices, mapping):
-#     if np.isscalar(indices):
-#         # Handle a single value
-#         return mapping.get(int(indices), "Unknown Label")
-#     else:
-#         # Handle an array of indices
-#         return [mapping.get(int(index), "Unknown Label") for index in indices]
-
 def load_label_mapping(mapping_file):
     label_mapping = np.load(mapping_file, allow_pickle=True).item()
     return label_mapping
@@ -422,6 +374,7 @@ def analyze_sound_file(sound, sr=22050):
 
 mapping_file = 'K:/Thesis/labelMapping/label_to_index.npy'  
 index_to_label_mapping = load_label_mapping(mapping_file)
+print(index_to_label_mapping)
 
 k1 = 50
 k2 = 10
@@ -556,7 +509,7 @@ if __name__ == "__main__":
                 precision = len(correct_labels) / len(pseudo_labels)
                 precision_per_file.append(precision)
             
-            print(f"File: {file_number}, Ground Truth: {ground_truth_labels}, Pseudo: {pseudo_labels}, Correct: {correct_labels}")
+            # print(f"File: {file_number}, Ground Truth: {ground_truth_labels}, Pseudo: {pseudo_labels}, Correct: {correct_labels}")
 
         accuracy = correct_label_count / total_relevant_label_count if total_relevant_label_count > 0 else 0
         average_precision = sum(precision_per_file) / len(precision_per_file) if precision_per_file else 0

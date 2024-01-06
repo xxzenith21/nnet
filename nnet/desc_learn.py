@@ -155,7 +155,7 @@ feature_matrix_val, feature_matrix_test, label_matrix_val, label_matrix_test = t
 
 # Neural network architecture
 conv_layer = Conv2DLayer(input_channels=1, output_channels=16, kernel_size=3, stride=2, padding=1)
-fc_layer = FullyConnectedLayer(input_size=16 * 4 * 4, output_size=176)  # Adjust output size to match the number of labels
+fc_layer = FullyConnectedLayer(input_size=16 * 4 * 4, output_size=248)  # Adjust output size to match the number of labels
 
 # Training process
 learning_rate = 0.05

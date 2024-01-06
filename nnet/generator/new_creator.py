@@ -160,4 +160,4 @@ def create_dataset(num_samples, dataset_output):
     s.stop()
 
 if __name__ == "__main__":
-    create_dataset(200, dataset_output)
+    create_dataset(700, dataset_output)
