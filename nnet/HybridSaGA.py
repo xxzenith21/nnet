@@ -9,10 +9,18 @@ from scipy.signal import convolve2d
 
 # Genetic Algorithm (GA) Phase
 
+def load_label_mapping(mapping_file):
+    label_to_index_mapping = np.load(mapping_file, allow_pickle=True).item()
+    # Invert the mapping to create an index-to-label mapping
+    return {v: k for k, v in label_to_index_mapping.items()}
+
 conv_model_path = "K:/Thesis/models/conv_model.npz"
 fc_model_path = "K:/Thesis/models/fc_model.npz"
 unlabeled_sounds = "K:/Thesis/unlabeled_dataset"
 saga_dataset = "K:/Thesis/saga_unlabeled_dataset"
+mapping_file = 'K:/Thesis/labelMapping/label_to_index.npy'  
+index_to_label_mapping = load_label_mapping(mapping_file)
+print(index_to_label_mapping)
 
 # Get a list of all sound files in the folder
 sound_files = [file for file in os.listdir(unlabeled_sounds) if file.endswith(".wav")]
@@ -27,6 +35,7 @@ for sound_file in sound_files:
 
     # Storing in dictionary
     ground_truth_labels_dict[file_number] = original_filename  # Storing the original filename
+
 
 # Step 1: Generate the initial k1 populations and initialize GA parameters
 def initialize_population(k1, num_labels_list):
@@ -93,18 +102,27 @@ def jaccard_similarity(set1, set2):
     union = len(set(set1).union(set2))
     return intersection / union if union != 0 else 0
 
-def evaluate_fitness(chromosome, ground_truth_labels):
+def evaluate_fitness(chromosome, ground_truth_labels_dict):
     # Assuming the first element of the chromosome is the file number
-    file_number = chromosome[0]
+    # file_number = chromosome[0]
 
     # Rest of the chromosome represents predicted labels
     predicted_labels = set(chromosome[1:])
+    print(predicted_labels)
+    print("//////////")
 
     # Get ground truth labels for the file number and convert to set
-    true_labels = set(ground_truth_labels.get(str(file_number), "").split(', '))
+    true_labels = set(ground_truth_labels_dict.get(str(file_number), "").split(', '))
+    print(true_labels)
+    default_value = "unknown"  # or any other value that makes sense in your context
+    ground_truth = [index_to_label_mapping.get(label.strip(), default_value) for label in true_labels]
+    print(ground_truth)
 
     # Calculate Jaccard similarity
-    fitness_score = jaccard_similarity(predicted_labels, true_labels)
+    # fitness_score = jaccard_similarity(predicted_labels, ground_truth)
+    common_elements = set(predicted_labels) & set(ground_truth)
+    fitness_score = (len(common_elements) / len(predicted_labels)) 
+    print(fitness_score)
 
     return fitness_score
 
@@ -374,18 +392,17 @@ def analyze_sound_file(sound, sr=22050):
 
 mapping_file = 'K:/Thesis/labelMapping/label_to_index.npy'  
 index_to_label_mapping = load_label_mapping(mapping_file)
-print(index_to_label_mapping)
 
 k1 = 50
 k2 = 10
 
 generations = 5
-sa_iterations = 10
+sa_iterations = 5
 crossover_rate = 0.9
 mutation_rate = 0.1
-stopping_generations = 10
+stopping_generations = 5
 
-population_size = 10
+population_size = 5
 num_genes = 20
 
 low = -5
