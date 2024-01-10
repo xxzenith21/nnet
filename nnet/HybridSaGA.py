@@ -20,7 +20,7 @@ unlabeled_sounds = "K:/Thesis/unlabeled_dataset"
 saga_dataset = "K:/Thesis/saga_unlabeled_dataset"
 mapping_file = 'K:/Thesis/labelMapping/label_to_index.npy'  
 index_to_label_mapping = load_label_mapping(mapping_file)
-print(index_to_label_mapping)
+# print(index_to_label_mapping)
 
 # Get a list of all sound files in the folder
 sound_files = [file for file in os.listdir(unlabeled_sounds) if file.endswith(".wav")]
@@ -94,13 +94,9 @@ def apply_mutation(population, mutation_rate):
 
     # Reshape the mutated flat array to the original population shape
     mutated_population = population_flat.reshape((num_individuals, num_labels))
+    print(mutated_population, "mutate")
 
     return mutated_population
-
-def jaccard_similarity(set1, set2):
-    intersection = len(set(set1).intersection(set2))
-    union = len(set(set1).union(set2))
-    return intersection / union if union != 0 else 0
 
 def evaluate_fitness(chromosome, ground_truth_labels_dict):
     # Assuming the first element of the chromosome is the file number
@@ -108,16 +104,17 @@ def evaluate_fitness(chromosome, ground_truth_labels_dict):
 
     # Rest of the chromosome represents predicted labels
     predicted_labels = set(chromosome[1:])
-    print(predicted_labels)
-    print("//////////")
+    # print(predicted_labels)
+    # print("//////////")
 
     # Get ground truth labels for the file number and convert to set
     true_labels = set(ground_truth_labels_dict.get(str(file_number), "").split(', '))
-    print(true_labels)
-    default_value = "unknown"  # or any other value that makes sense in your context
-    ground_truth = [index_to_label_mapping.get(label.strip(), default_value) for label in true_labels]
-    print(ground_truth)
+    # print(true_labels)
+    # default_value = "unknown"  # or any other value that makes sense in your context
+    # ground_truth = [index_to_label_mapping.get(label.strip(), default_value) for label in true_labels]
+    # print(ground_truth)
 
+    ground_truth = [index_to_label_mapping.get(label) for label in true_labels]
     # Calculate Jaccard similarity
     # fitness_score = jaccard_similarity(predicted_labels, ground_truth)
     common_elements = set(predicted_labels) & set(ground_truth)
@@ -142,6 +139,7 @@ def tournament_selection(population, fitness_values, tournament_size):
     # Find the index of the best individual in the tournament
     best_index = np.argmax(tournament_fitness)
     best_individual = tournament_individuals[best_index]
+    print(best_individual, "tourna")
 
     return best_individual
 
@@ -165,7 +163,7 @@ def mutate(chromosome, mutation_rate=0.1):
 # Main GA Procedure
 def run_genetic_algorithm(generations, population_size, population, crossover_rate, mutation_rate, stopping_generations):
     population = initialize_population(population_size, [num_genes])
-    best_fitness = float('inf')
+    # best_fitness = float('inf')
 
     for generation in range(generations):
         new_population = []
@@ -253,6 +251,8 @@ def simulated_annealing(chromosomes, sa_parameters):
 
         # Cooling
         temperature *= cooling_rate
+
+        print(current_solution, "sa curr")
 
     return current_solution
 
@@ -448,8 +448,10 @@ if __name__ == "__main__":
         num_labels = analyze_sound_file(sound)
 
         population = initialize_population(population_size, [num_labels] * population_size)
+        print(population, "main pop")
         # final_population, fitness_values = run_genetic_algorithm(generations, population_size, population, crossover_rate, mutation_rate, stopping_generations)
         final_population, fitness_values = run_genetic_algorithm(generations, population_size, population, crossover_rate, mutation_rate, stopping_generations)
+        print(final_population)
         # Run Genetic Algorithm
         # population, fitness_values = run_genetic_algorithm(generations, population_size, num_genes)
         best_chromosome_index = np.argmin(fitness_values)
