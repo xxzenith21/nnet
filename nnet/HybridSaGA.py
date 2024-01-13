@@ -94,7 +94,7 @@ def apply_mutation(population, mutation_rate):
 
     # Reshape the mutated flat array to the original population shape
     mutated_population = population_flat.reshape((num_individuals, num_labels))
-    print(mutated_population, "mutate")
+    # print(mutated_population, "mutate")
 
     return mutated_population
 
@@ -119,7 +119,7 @@ def evaluate_fitness(chromosome, ground_truth_labels_dict):
     # fitness_score = jaccard_similarity(predicted_labels, ground_truth)
     common_elements = set(predicted_labels) & set(ground_truth)
     fitness_score = (len(common_elements) / len(predicted_labels)) 
-    print(fitness_score)
+    # print(fitness_score)
 
     return fitness_score
 
@@ -139,7 +139,7 @@ def tournament_selection(population, fitness_values, tournament_size):
     # Find the index of the best individual in the tournament
     best_index = np.argmax(tournament_fitness)
     best_individual = tournament_individuals[best_index]
-    print(best_individual, "tourna")
+    # print(best_individual, "tourna")
 
     return best_individual
 
@@ -252,7 +252,7 @@ def simulated_annealing(chromosomes, sa_parameters):
         # Cooling
         temperature *= cooling_rate
 
-        print(current_solution, "sa curr")
+        # print(current_solution, "sa curr")
 
     return current_solution
 
@@ -396,14 +396,14 @@ index_to_label_mapping = load_label_mapping(mapping_file)
 k1 = 50
 k2 = 10
 
-generations = 5
-sa_iterations = 5
-crossover_rate = 0.9
+generations = 100
+sa_iterations = 50
+crossover_rate = 0.65
 mutation_rate = 0.1
-stopping_generations = 5
+stopping_generations = 30
 
-population_size = 5
-num_genes = 20
+population_size = 150
+num_genes = 10
 
 low = -5
 high = 5
@@ -440,6 +440,7 @@ def extract_labels_from_filename(filename):
 
 if __name__ == "__main__":
     # Iterate over each sound file
+    print("Executing Hybrid SaGa. Please wait . . . . . ")
     for sound_file in sound_files:
         # Load the audio data from the file (you may need to adjust this based on your actual audio loading code)
         sound, _ = librosa.load(os.path.join(unlabeled_sounds, sound_file), sr=None)
@@ -448,10 +449,10 @@ if __name__ == "__main__":
         num_labels = analyze_sound_file(sound)
 
         population = initialize_population(population_size, [num_labels] * population_size)
-        print(population, "main pop")
+        # print(population, "main pop")
         # final_population, fitness_values = run_genetic_algorithm(generations, population_size, population, crossover_rate, mutation_rate, stopping_generations)
         final_population, fitness_values = run_genetic_algorithm(generations, population_size, population, crossover_rate, mutation_rate, stopping_generations)
-        print(final_population)
+        # print(final_population)
         # Run Genetic Algorithm
         # population, fitness_values = run_genetic_algorithm(generations, population_size, num_genes)
         best_chromosome_index = np.argmin(fitness_values)
@@ -532,15 +533,15 @@ if __name__ == "__main__":
 
         accuracy = correct_label_count / total_relevant_label_count if total_relevant_label_count > 0 else 0
         average_precision = sum(precision_per_file) / len(precision_per_file) if precision_per_file else 0
+        print("True Positive: ", correct_label_count)
+        print("Total Number of Labels: ", total_relevant_label_count)
+        print("False Positive: ", precision_per_file)
 
-        return accuracy, average_precision
+        return accuracy, average_precision  
 
     # print(ground_truth_labels_dict, "\n\n\n")
     # print(pseudo_labels_dict, "\n\n\n")
 
     accuracy, precision = calculate_accuracy_precision(ground_truth_labels_dict, pseudo_labels_dict)
-    print("Accuracy:", accuracy)
-    print("Precision:", precision)
-    
-
-
+    print("Accuracy: ", accuracy)
+    print("Precision: ", precision)
