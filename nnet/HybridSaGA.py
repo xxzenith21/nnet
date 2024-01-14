@@ -396,13 +396,13 @@ index_to_label_mapping = load_label_mapping(mapping_file)
 k1 = 50
 k2 = 10
 
-generations = 100
+generations = 500
 sa_iterations = 50
-crossover_rate = 0.65
-mutation_rate = 0.1
+crossover_rate = 0.9
+mutation_rate = 0.5
 stopping_generations = 30
 
-population_size = 150
+population_size = 700
 num_genes = 10
 
 low = -5
