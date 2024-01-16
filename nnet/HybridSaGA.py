@@ -18,7 +18,7 @@ conv_model_path = "K:/Thesis/models/conv_model.npz"
 fc_model_path = "K:/Thesis/models/fc_model.npz"
 unlabeled_sounds = "K:/Thesis/unlabeled_dataset"
 saga_dataset = "K:/Thesis/saga_unlabeled_dataset"
-mapping_file = 'K:/Thesis/labelMapping/label_to_index.npy'  
+mapping_file = "K:/Thesis/labelMapping/label_to_index.npy"
 index_to_label_mapping = load_label_mapping(mapping_file)
 # print(index_to_label_mapping)
 
@@ -35,7 +35,6 @@ for sound_file in sound_files:
 
     # Storing in dictionary
     ground_truth_labels_dict[file_number] = original_filename  # Storing the original filename
-
 
 # Step 1: Generate the initial k1 populations and initialize GA parameters
 def initialize_population(k1, num_labels_list):
@@ -74,7 +73,6 @@ def apply_crossover(population, crossover_rate):
         population[pair[1], crossover_point:] = temp
 
     return population
-
 
 # Placeholder: Implement your mutation operator
 def apply_mutation(population, mutation_rate):
@@ -389,9 +387,6 @@ def analyze_sound_file(sound, sr=22050):
         num_labels = 12
 
     return num_labels 
-
-mapping_file = 'K:/Thesis/labelMapping/label_to_index.npy'  
-index_to_label_mapping = load_label_mapping(mapping_file)
 
 k1 = 50
 k2 = 10
